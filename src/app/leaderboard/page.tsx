@@ -44,6 +44,13 @@ export default function PublicLeaderboardPage() {
         };
     }, []);
 
+    const timerParamsRef = useRef({ startTime: 0, duration: 10 });
+    const offsetRef = useRef(0);
+
+    useEffect(() => {
+        offsetRef.current = clientServerOffset;
+    }, [clientServerOffset]);
+
     // Sync real-time countdown timer based on client-server time offset
     useEffect(() => {
         if (!sessionState || !sessionState.timerStartTime) {
@@ -57,23 +64,26 @@ export default function PublicLeaderboardPage() {
 
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-        const duration = sessionState.timerDuration;
-        const startTime = new Date(sessionState.timerStartTime).getTime();
+        timerParamsRef.current = {
+            startTime: new Date(sessionState.timerStartTime).getTime(),
+            duration: sessionState.timerDuration
+        };
 
         const updateTimer = () => {
-            const currentServerTime = Date.now() + clientServerOffset;
+            const { startTime, duration } = timerParamsRef.current;
+            const currentServerTime = Date.now() + offsetRef.current;
             const elapsed = (currentServerTime - startTime) / 1000;
             const remaining = Math.max(0, duration - elapsed);
             setTimeLeft(remaining);
         };
 
         updateTimer();
-        timerIntervalRef.current = setInterval(updateTimer, 100);
+        timerIntervalRef.current = setInterval(updateTimer, 200);
 
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [sessionState, clientServerOffset]);
+    }, [sessionState?.timerStartTime, sessionState?.timerDuration]);
 
     const fetchSessionState = async () => {
         try {

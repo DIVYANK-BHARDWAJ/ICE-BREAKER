@@ -158,6 +158,14 @@ export default function PlayerPage() {
         }
     };
 
+    // Stable refs for timer to avoid restarting on every sessionState poll
+    const timerParamsRef = useRef({ startTime: 0, duration: 10 });
+    const offsetRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (clientServerOffset !== null) offsetRef.current = clientServerOffset;
+    }, [clientServerOffset]);
+
     // 3. Keep local countdown updated based on server time offset
     useEffect(() => {
         if (clientServerOffset === null) return;
@@ -173,38 +181,37 @@ export default function PlayerPage() {
 
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-        const duration = sessionState.timerDuration;
-        const startTime = new Date(sessionState.timerStartTime).getTime();
+        timerParamsRef.current = {
+            startTime: new Date(sessionState.timerStartTime).getTime(),
+            duration: sessionState.timerDuration
+        };
 
         const updateTimer = () => {
-            const currentServerTime = Date.now() + clientServerOffset;
+            const { startTime, duration } = timerParamsRef.current;
+            const currentServerTime = Date.now() + offsetRef.current;
             const elapsed = (currentServerTime - startTime) / 1000;
             const remaining = Math.max(0, duration - elapsed);
             setTimeLeft(remaining);
             
-            // Auto-submit if time is up, we have an active question, and haven't submitted yet
             const latest = stateRef.current;
             if (remaining <= 0 && latest.q && latest.submittedAnswerIndex !== latest.currentIdx && !latest.isSubmitting) {
                 let answerToSubmit = '';
                 if (latest.q.type === 'emoji') {
                     answerToSubmit = latest.emojiTextGuess.trim();
                 } else {
-                    // For MCQs, if they clicked/selected an option, it was already submitted in handleAnswerSelect.
-                    // If they selected nothing, we submit a blank string to ensure a record of participation is stored.
                     answerToSubmit = latest.userAnswer || '';
                 }
                 autoSubmitAnswer(answerToSubmit);
             }
         };
 
-        // Run immediately and then set interval
         updateTimer();
-        timerIntervalRef.current = setInterval(updateTimer, 100);
+        timerIntervalRef.current = setInterval(updateTimer, 200);
 
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [sessionState, clientServerOffset, player]);
+    }, [sessionState?.timerStartTime, sessionState?.timerDuration, clientServerOffset === null, player]);
 
     // 4. Handle new question index or reset
     useEffect(() => {
