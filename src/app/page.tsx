@@ -119,7 +119,7 @@ export default function PlayerPage() {
         return () => clearInterval(interval);
     }, [sessionState?.isEnded]);
 
-    const autoSubmitAnswer = async (answerVal: string) => {
+    const autoSubmitAnswer = async (answerVal: string, timeLeftAtCall: number = 0) => {
         const latest = stateRef.current;
         if (!latest.player || !latest.sessionState) return;
         if (latest.sessionState.isEnded) return;
@@ -140,6 +140,13 @@ export default function PlayerPage() {
         localStorage.setItem('submitted_answers', JSON.stringify(storedAnswers));
 
         setIsSubmitting(true);
+
+        // Spread out submissions when timer expires to avoid DB burst
+        if (timeLeftAtCall <= 0) {
+            const jitter = Math.random() * 400;
+            await new Promise(r => setTimeout(r, jitter));
+        }
+
         try {
             const res = await fetch('/api/submit-answer', {
                 method: 'POST',
@@ -206,7 +213,7 @@ export default function PlayerPage() {
                 } else {
                     answerToSubmit = latest.userAnswer || '';
                 }
-                autoSubmitAnswer(answerToSubmit);
+                autoSubmitAnswer(answerToSubmit, remaining);
             }
         };
 
