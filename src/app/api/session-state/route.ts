@@ -35,7 +35,6 @@ export async function GET() {
                 showAnswers: state.show_answers,
                 isLocked: state.is_locked,
                 isEnded: state.is_ended,
-                serverTime: state.server_time
             };
         });
 
@@ -43,7 +42,11 @@ export async function GET() {
             return NextResponse.json({ success: false, error: 'Session state not found' }, { status: 404 });
         }
 
-        return NextResponse.json(data);
+        // serverTime is always fresh (never cached) for accurate clock sync
+        return NextResponse.json({
+            ...data,
+            serverTime: new Date().toISOString()
+        });
     } catch (error: any) {
         console.error('Error fetching session state:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

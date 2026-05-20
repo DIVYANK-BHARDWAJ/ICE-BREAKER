@@ -29,6 +29,7 @@ export async function POST(request: Request) {
 
         let currentIndex = stateRes.rows[0].current_question_index;
         let didMutate = true;
+        const now = new Date().toISOString();
 
         if (action === 'release') {
             const q = questions[currentIndex];
@@ -36,12 +37,12 @@ export async function POST(request: Request) {
             await query(`
                 UPDATE quiz_session_state 
                 SET 
-                    timer_start_time = NOW(), 
-                    timer_duration = $1, 
+                    timer_start_time = $1, 
+                    timer_duration = $2, 
                     is_locked = FALSE, 
                     show_answers = FALSE
                 WHERE id = 1
-            `, [timerDuration]);
+            `, [now, timerDuration]);
         } else if (action === 'lock') {
             await query(`UPDATE quiz_session_state SET is_locked = TRUE WHERE id = 1`);
         } else if (action === 'reveal') {
@@ -86,8 +87,7 @@ export async function POST(request: Request) {
                     timer_duration, 
                     show_answers, 
                     is_locked,
-                    is_ended,
-                    NOW() as server_time
+                    is_ended
                 FROM quiz_session_state 
                 WHERE id = 1
             `),
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
                 showAnswers: updatedState.show_answers,
                 isLocked: updatedState.is_locked,
                 isEnded: updatedState.is_ended,
-                serverTime: updatedState.server_time
+                serverTime: new Date().toISOString()
             },
             playersStatus: playersRes.rows.map(row => ({
                 name: row.name,
