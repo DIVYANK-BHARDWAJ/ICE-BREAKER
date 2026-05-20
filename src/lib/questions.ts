@@ -148,7 +148,7 @@ export const questions: Question[] = [
         question: "🚢💧🧊",
         images: ["/assets/titanic.png"],
         answer: "Titanic",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -156,7 +156,7 @@ export const questions: Question[] = [
         question: "A❤️ + HARD",
         images: ["/assets/adhm.png"],
         answer: "Ae Dil Hai Mushkil",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -164,7 +164,7 @@ export const questions: Question[] = [
         question: "🧊🎲 + 👑",
         images: ["/assets/frozen.png"],
         answer: "Frozen",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -172,7 +172,7 @@ export const questions: Question[] = [
         question: "🚆🧟🧟🇰🇷",
         images: ["/assets/train_to_busan.png"],
         answer: "Train to Busan",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -180,7 +180,7 @@ export const questions: Question[] = [
         question: "😵🍺 C 🧗🏡",
         images: ["/assets/nashe_se_chad_gaye.png"],
         answer: "Nashe Se Chad Gaye",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -188,7 +188,7 @@ export const questions: Question[] = [
         question: "🪦 + 😊",
         images: ["/assets/die_with_a_smile.png"],
         answer: "Die with a Smile",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -196,7 +196,7 @@ export const questions: Question[] = [
         question: "👶 + KA + ❤️",
         images: ["/assets/bachpan_ka_pyaar.png"],
         answer: "Bachpan Ka Pyaar",
-        timer: 15
+        timer: 20
     },
     {
         section: "Section 3 — Emoji Guess Game",
@@ -204,6 +204,6 @@ export const questions: Question[] = [
         question: "🏃 + 😄 + 👧",
         images: ["/assets/steal_my_girl.png"],
         answer: "Steal My Girl",
-        timer: 15
+        timer: 20
     }
 ];
