@@ -102,17 +102,22 @@ export default function PlayerPage() {
     useEffect(() => {
         // Fetch session state immediately
         fetchSessionState();
-        fetchLeaderboard();
 
         const sessionInterval = setInterval(fetchSessionState, 2000);
-        const leaderboardInterval = setInterval(fetchLeaderboard, 4000);
 
         return () => {
             clearInterval(sessionInterval);
-            clearInterval(leaderboardInterval);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
     }, [player]);
+
+    // Only poll leaderboard when session has ended
+    useEffect(() => {
+        if (!sessionState?.isEnded) return;
+        fetchLeaderboard();
+        const interval = setInterval(fetchLeaderboard, 4000);
+        return () => clearInterval(interval);
+    }, [sessionState?.isEnded]);
 
     const autoSubmitAnswer = async (answerVal: string) => {
         const latest = stateRef.current;
@@ -830,30 +835,7 @@ export default function PlayerPage() {
                 </div>
             )}
 
-            {/* Standings list preview */}
-            <div style={{ marginTop: 10 }}>
-                <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 12, fontWeight: 700, paddingLeft: 4 }}>Leaderboard Standings</h3>
-                <div className="leaderboard-container" style={{ maxHeight: 220, overflowY: 'auto' }}>
-                    {leaderboard.length === 0 ? (
-                        <div className="empty-leaderboard">No registrations yet.</div>
-                    ) : (
-                        leaderboard.slice(0, 5).map((entry) => {
-                            const isMe = entry.usn === player.usn;
-                            return (
-                                <div key={entry.usn} className={`leaderboard-row ${isMe ? 'current-user' : ''}`} style={{ padding: '10px 16px' }}>
-                                    <div className="rank-col" style={{ width: 35, fontSize: '0.85rem' }}>
-                                        {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
-                                    </div>
-                                    <div className="name-col">
-                                        <span className="name-text" style={{ fontSize: '0.9rem' }}>{entry.name}</span>
-                                    </div>
-                                    <div className="score-col" style={{ fontSize: '0.9rem' }}>{entry.score} pts</div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            </div>
+
         </div>
     );
 }
