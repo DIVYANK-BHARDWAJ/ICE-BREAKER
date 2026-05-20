@@ -16,7 +16,7 @@ export async function GET() {
                     show_answers, 
                     is_locked,
                     is_ended,
-                    NOW() as server_time
+                    leaderboard_revealed
                 FROM quiz_session_state 
                 WHERE id = 1
             `);
@@ -35,6 +35,7 @@ export async function GET() {
                 showAnswers: state.show_answers,
                 isLocked: state.is_locked,
                 isEnded: state.is_ended,
+                leaderboardRevealed: state.leaderboard_revealed,
             };
         });
 

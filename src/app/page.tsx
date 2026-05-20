@@ -19,6 +19,7 @@ interface SessionState {
     isLocked: boolean;
     isEnded: boolean;
     serverTime: string;
+    leaderboardRevealed: boolean;
 }
 
 export default function PlayerPage() {
@@ -210,9 +211,9 @@ export default function PlayerPage() {
         };
     }, [sessionState?.timerStartTime, sessionState?.timerDuration, clientServerOffset === null, player]);
 
-    // Poll leaderboard when session ends (dynamic, like projector view)
+    // Poll leaderboard when admin reveals leaderboard (dynamic, like projector view)
     useEffect(() => {
-        if (!sessionState?.isEnded) return;
+        if (!sessionState?.leaderboardRevealed) return;
         const fetchLb = async () => {
             try {
                 const res = await fetch('/api/leaderboard');
@@ -287,11 +288,12 @@ export default function PlayerPage() {
                     showAnswers: data.showAnswers,
                     isLocked: data.isLocked,
                     isEnded: data.isEnded,
-                    serverTime: data.serverTime
+                    serverTime: data.serverTime,
+                    leaderboardRevealed: data.leaderboardRevealed
                 });
 
-                // Immediately fetch leaderboard when session ends (no wait for effect)
-                if (data.isEnded && !wasEnded) {
+                // Immediately fetch leaderboard when admin reveals it
+                if (data.leaderboardRevealed && !stateRef.current.sessionState?.leaderboardRevealed) {
                     fetchLeaderboardData();
                 }
             }
@@ -524,7 +526,7 @@ export default function PlayerPage() {
 
     const isCompleted = currentIdx >= questions.length || sessionState.isEnded;
 
-    // 2. RESULTS END SCREEN (with rankings visible after admin ends session)
+    // 2. RESULTS END SCREEN (rankings only shown when admin reveals leaderboard)
     if (isCompleted) {
         const myRank = leaderboard.findIndex(p => p.usn === player.usn) + 1;
         return (
@@ -543,15 +545,9 @@ export default function PlayerPage() {
                             <div className="result-card-val">{player.correctCount}/{questions.length}</div>
                             <div className="result-card-lbl">Correct Answers</div>
                         </div>
-                        {leaderboard.length > 0 && (
-                            <div className="result-summary-card">
-                                <div className="result-card-val">#{myRank} / {leaderboard.length}</div>
-                                <div className="result-card-lbl">Rank</div>
-                            </div>
-                        )}
                     </div>
 
-                    {leaderboard.length > 0 && (
+                    {sessionState?.leaderboardRevealed && leaderboard.length > 0 && (
                         <div style={{ marginTop: 8, marginBottom: 16 }}>
                             <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 12, fontWeight: 700 }}>Final Rankings</h3>
                             <div className="leaderboard-container" style={{ maxHeight: 300, overflowY: 'auto' }}>

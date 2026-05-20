@@ -319,6 +319,7 @@ export default function AdminPage() {
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="badge" 
+                            onClick={() => sendControl('reveal-leaderboard')}
                             style={{ 
                                 textDecoration: 'none', 
                                 background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 
@@ -477,6 +478,7 @@ export default function AdminPage() {
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="badge" 
+                        onClick={() => sendControl('reveal-leaderboard')}
                         style={{ 
                             textDecoration: 'none', 
                             background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 
@@ -488,7 +490,7 @@ export default function AdminPage() {
                             cursor: 'pointer'
                         }}
                     >
-                        Projector View ↗
+                        Open Projector View ↗
                     </a>
                     <button onClick={handleLogout} className="badge" style={{ cursor: 'pointer' }}>Log Out</button>
                 </div>

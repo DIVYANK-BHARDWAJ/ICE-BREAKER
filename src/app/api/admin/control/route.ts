@@ -67,6 +67,8 @@ export async function POST(request: Request) {
             }
         } else if (action === 'end') {
             await query(`UPDATE quiz_session_state SET is_ended = TRUE WHERE id = 1`);
+        } else if (action === 'reveal-leaderboard') {
+            await query(`UPDATE quiz_session_state SET leaderboard_revealed = TRUE WHERE id = 1`);
         } else if (action === 'status') {
             didMutate = false;
         } else {
@@ -87,7 +89,8 @@ export async function POST(request: Request) {
                     timer_duration, 
                     show_answers, 
                     is_locked,
-                    is_ended
+                    is_ended,
+                    leaderboard_revealed
                 FROM quiz_session_state 
                 WHERE id = 1
             `),
@@ -111,7 +114,8 @@ export async function POST(request: Request) {
                 showAnswers: updatedState.show_answers,
                 isLocked: updatedState.is_locked,
                 isEnded: updatedState.is_ended,
-                serverTime: new Date().toISOString()
+                serverTime: new Date().toISOString(),
+                leaderboardRevealed: updatedState.leaderboard_revealed
             },
             playersStatus: playersRes.rows.map(row => ({
                 name: row.name,
