@@ -259,6 +259,16 @@ export default function PlayerPage() {
         }
     }, [sessionState?.currentQuestionIndex]);
 
+    const fetchLeaderboardData = async () => {
+        try {
+            const res = await fetch('/api/leaderboard');
+            const data = await res.json();
+            if (data.success) setLeaderboard(data.leaderboard);
+        } catch (e) {
+            console.error('Failed to fetch leaderboard', e);
+        }
+    };
+
     const fetchSessionState = async () => {
         try {
             const res = await fetch('/api/session-state');
@@ -267,6 +277,8 @@ export default function PlayerPage() {
                 const serverTimeMs = new Date(data.serverTime).getTime();
                 const offset = serverTimeMs - Date.now();
                 setClientServerOffset(offset);
+
+                const wasEnded = stateRef.current.sessionState?.isEnded;
                 
                 setSessionState({
                     currentQuestionIndex: data.currentQuestionIndex,
@@ -277,6 +289,11 @@ export default function PlayerPage() {
                     isEnded: data.isEnded,
                     serverTime: data.serverTime
                 });
+
+                // Immediately fetch leaderboard when session ends (no wait for effect)
+                if (data.isEnded && !wasEnded) {
+                    fetchLeaderboardData();
+                }
             }
         } catch (e) {
             console.error('Failed to fetch session state', e);
