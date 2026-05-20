@@ -42,7 +42,8 @@ export default function PlayerPage() {
         isLate: boolean;
     } | null>(null);
 
-
+    // Leaderboard state (only populated after session ends)
+    const [leaderboard, setLeaderboard] = useState<{ rank: number; name: string; usn: string; score: number; correctCount: number }[]>([]);
 
     // Written round text state
     const [emojiTextGuess, setEmojiTextGuess] = useState('');
@@ -208,6 +209,21 @@ export default function PlayerPage() {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
     }, [sessionState?.timerStartTime, sessionState?.timerDuration, clientServerOffset === null, player]);
+
+    // Fetch leaderboard once when session ends
+    useEffect(() => {
+        if (!sessionState?.isEnded) return;
+        const fetchLb = async () => {
+            try {
+                const res = await fetch('/api/leaderboard');
+                const data = await res.json();
+                if (data.success) setLeaderboard(data.leaderboard);
+            } catch (e) {
+                console.error('Failed to fetch leaderboard', e);
+            }
+        };
+        fetchLb();
+    }, [sessionState?.isEnded]);
 
     // 4. Handle new question index or reset
     useEffect(() => {
@@ -489,8 +505,9 @@ export default function PlayerPage() {
 
     const isCompleted = currentIdx >= questions.length || sessionState.isEnded;
 
-    // 2. RESULTS END SCREEN (no leaderboard - only on admin projector view)
+    // 2. RESULTS END SCREEN (with rankings visible after admin ends session)
     if (isCompleted) {
+        const myRank = leaderboard.findIndex(p => p.usn === player.usn) + 1;
         return (
             <div className="glass-container">
                 <div className="glass-card">
@@ -507,19 +524,41 @@ export default function PlayerPage() {
                             <div className="result-card-val">{player.correctCount}/{questions.length}</div>
                             <div className="result-card-lbl">Correct Answers</div>
                         </div>
+                        {leaderboard.length > 0 && (
+                            <div className="result-summary-card">
+                                <div className="result-card-val">#{myRank} / {leaderboard.length}</div>
+                                <div className="result-card-lbl">Rank</div>
+                            </div>
+                        )}
                     </div>
 
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>
-                        Check the main screen for final rankings.
-                    </p>
-
-                    <button 
-                        onClick={logout} 
-                        className="btn btn-secondary" 
-                        style={{ marginTop: 12, opacity: 0.7 }}
-                    >
-                        Sign Out / Exit
-                    </button>
+                    {leaderboard.length > 0 && (
+                        <div style={{ marginTop: 8, marginBottom: 16 }}>
+                            <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 12, fontWeight: 700 }}>Final Rankings</h3>
+                            <div className="leaderboard-container" style={{ maxHeight: 300, overflowY: 'auto' }}>
+                                <div className="leaderboard-row header">
+                                    <div className="rank-col">Rank</div>
+                                    <div className="name-col">Player</div>
+                                    <div className="score-col">Score</div>
+                                </div>
+                                {leaderboard.map((entry) => {
+                                    const isMe = entry.usn === player.usn;
+                                    return (
+                                        <div key={entry.usn} className={`leaderboard-row ${isMe ? 'current-user' : ''}`}>
+                                            <div className="rank-col">
+                                                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+                                            </div>
+                                            <div className="name-col">
+                                                <span className="name-text">{entry.name}</span>
+                                                <span className="usn-text">{entry.usn}</span>
+                                            </div>
+                                            <div className="score-col">{entry.score} pts</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
