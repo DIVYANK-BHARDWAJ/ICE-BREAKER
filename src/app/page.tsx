@@ -21,14 +21,6 @@ interface SessionState {
     serverTime: string;
 }
 
-interface LeaderboardEntry {
-    rank: number;
-    name: string;
-    usn: string;
-    score: number;
-    correctCount: number;
-}
-
 export default function PlayerPage() {
     // Player identity states
     const [player, setPlayer] = useState<Player | null>(null);
@@ -50,9 +42,7 @@ export default function PlayerPage() {
         isLate: boolean;
     } | null>(null);
 
-    // Leaderboard state
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [showLeaderboard, setShowLeaderboard] = useState(false);
+
 
     // Written round text state
     const [emojiTextGuess, setEmojiTextGuess] = useState('');
@@ -111,13 +101,7 @@ export default function PlayerPage() {
         };
     }, [player]);
 
-    // Only poll leaderboard when session has ended
-    useEffect(() => {
-        if (!sessionState?.isEnded) return;
-        fetchLeaderboard();
-        const interval = setInterval(fetchLeaderboard, 4000);
-        return () => clearInterval(interval);
-    }, [sessionState?.isEnded]);
+
 
     const autoSubmitAnswer = async (answerVal: string, timeLeftAtCall: number = 0) => {
         const latest = stateRef.current;
@@ -278,35 +262,6 @@ export default function PlayerPage() {
             }
         } catch (e) {
             console.error('Failed to fetch session state', e);
-        }
-    };
-
-    const fetchLeaderboard = async () => {
-        try {
-            const res = await fetch('/api/leaderboard');
-            const data = await res.json();
-            if (data.success) {
-                setLeaderboard(data.leaderboard);
-                
-                // Update player details locally if rank changed
-                if (player) {
-                    const me = data.leaderboard.find((p: any) => p.usn === player.usn);
-                    if (me) {
-                        const updated = {
-                            ...player,
-                            score: me.score,
-                            correctCount: me.correctCount
-                        };
-                        setPlayer(updated);
-                        localStorage.setItem('quiz_player', JSON.stringify(updated));
-                    } else {
-                        // Player was wiped from database (e.g. admin reset)
-                        logout();
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Failed to fetch leaderboard', e);
         }
     };
 
@@ -534,87 +489,29 @@ export default function PlayerPage() {
 
     const isCompleted = currentIdx >= questions.length || sessionState.isEnded;
 
-    // 2. RESULTS / LEADERBOARD END SCREEN
+    // 2. RESULTS END SCREEN (no leaderboard - only on admin projector view)
     if (isCompleted) {
-        const myRank = leaderboard.findIndex(p => p.usn === player.usn) + 1;
-        const totalPlayers = leaderboard.length;
-        
-        let feedbackEmoji = '🤔';
-        if (totalPlayers > 0) {
-            const rankPercentile = (totalPlayers - myRank + 1) / totalPlayers;
-            if (rankPercentile >= 0.7) feedbackEmoji = '🎉';
-            else if (rankPercentile >= 0.3) feedbackEmoji = '😄';
-        }
-
         return (
             <div className="glass-container">
                 <div className="glass-card">
-                    {!showLeaderboard ? (
-                        <>
-                            <h1>Ice Breaker Completed!</h1>
-                            <div className="emoji-feedback">{feedbackEmoji}</div>
-                            
-                            <div className="result-score-circle">
-                                <div className="result-score-val">{player.score}</div>
-                                <div className="result-score-label">Points</div>
-                            </div>
+                    <h1>Ice Breaker Completed!</h1>
+                    <div className="emoji-feedback">🎉</div>
+                    
+                    <div className="result-score-circle">
+                        <div className="result-score-val">{player.score}</div>
+                        <div className="result-score-label">Points</div>
+                    </div>
 
-                            <div className="result-summary-grid" style={{ marginBottom: 24 }}>
-                                <div className="result-summary-card">
-                                    <div className="result-card-val">{player.correctCount}/{questions.length}</div>
-                                    <div className="result-card-lbl">Correct Answers</div>
-                                </div>
-                                <div className="result-summary-card">
-                                    <div className="result-card-val">{myRank > 0 ? `#${myRank} / ${totalPlayers}` : '-'}</div>
-                                    <div className="result-card-lbl">Rank</div>
-                                </div>
-                            </div>
+                    <div className="result-summary-grid" style={{ marginBottom: 24 }}>
+                        <div className="result-summary-card">
+                            <div className="result-card-val">{player.correctCount}/{questions.length}</div>
+                            <div className="result-card-lbl">Correct Answers</div>
+                        </div>
+                    </div>
 
-                            <button 
-                                onClick={() => setShowLeaderboard(true)} 
-                                className="btn"
-                                style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', color: '#000', fontWeight: 800 }}
-                            >
-                                🏆 Check Leaderboard & Rankings
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <h1>Quiz Rankings</h1>
-                            <div className="subtitle" style={{ marginBottom: 20 }}>Your rank is #{myRank} out of {totalPlayers} players</div>
-
-                            <div className="leaderboard-container" style={{ maxHeight: 350, overflowY: 'auto' }}>
-                                <div className="leaderboard-row header">
-                                    <div className="rank-col">Rank</div>
-                                    <div className="name-col">Player</div>
-                                    <div className="score-col">Score</div>
-                                </div>
-                                {leaderboard.map((entry) => {
-                                    const isMe = entry.usn === player.usn;
-                                    return (
-                                        <div key={entry.usn} className={`leaderboard-row ${isMe ? 'current-user' : ''}`}>
-                                            <div className="rank-col">
-                                                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
-                                            </div>
-                                            <div className="name-col">
-                                                <span className="name-text">{entry.name}</span>
-                                                <span className="usn-text">{entry.usn}</span>
-                                            </div>
-                                            <div className="score-col">{entry.score} pts</div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <button 
-                                onClick={() => setShowLeaderboard(false)} 
-                                className="btn btn-secondary" 
-                                style={{ marginTop: 24 }}
-                            >
-                                ◀ Back to My Score
-                            </button>
-                        </>
-                    )}
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>
+                        Check the main screen for final rankings.
+                    </p>
 
                     <button 
                         onClick={logout} 
