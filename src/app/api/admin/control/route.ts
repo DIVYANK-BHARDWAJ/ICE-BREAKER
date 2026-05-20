@@ -67,6 +67,12 @@ export async function POST(request: Request) {
             }
         } else if (action === 'end') {
             await query(`UPDATE quiz_session_state SET is_ended = TRUE WHERE id = 1`);
+        } else if (action === 'remove-player') {
+            const { usn } = body;
+            if (!usn) return NextResponse.json({ success: false, error: 'USN is required' }, { status: 400 });
+            await query('DELETE FROM player_answers WHERE player_usn = $1', [usn]);
+            await query('DELETE FROM players WHERE usn = $1', [usn]);
+            invalidateCacheByPrefix('leaderboard');
         } else if (action === 'reveal-leaderboard') {
             await query(`UPDATE quiz_session_state SET leaderboard_revealed = TRUE WHERE id = 1`);
         } else if (action === 'status') {

@@ -211,6 +211,27 @@ export default function AdminPage() {
         sendControl('release', duration);
     };
 
+    const removePlayer = async (usn: string) => {
+        if (!confirm(`Remove player ${usn}? This cannot be undone.`)) return;
+        setActionError('');
+        try {
+            const res = await fetch('/api/admin/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'remove-player', password, usn })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSessionState(data.sessionState);
+                setPlayers(data.playersStatus);
+            } else {
+                setActionError(data.error || 'Failed to remove player.');
+            }
+        } catch (e) {
+            setActionError('Connection failed.');
+        }
+    };
+
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
         setResetSuccess('');
@@ -418,8 +439,15 @@ export default function AdminPage() {
                                             <span className="name-text" style={{ fontSize: '0.85rem', fontWeight: idx < 3 ? 700 : 500 }}>{p.name}</span>
                                             <span className="usn-text" style={{ fontSize: '0.7rem' }}>{p.usn}</span>
                                         </div>
-                                        <div className="score-col" style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                                            {p.score} pts ({p.correctCount} correct)
+                                        <div className="score-col" style={{ fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span>{p.score} pts ({p.correctCount} correct)</span>
+                                            <button 
+                                                onClick={() => removePlayer(p.usn)} 
+                                                style={{ background: 'rgba(255,50,50,0.2)', color: '#ff5050', border: '1px solid rgba(255,50,50,0.3)', borderRadius: 6, padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                                                title="Remove player"
+                                            >
+                                                ✕
+                                            </button>
                                         </div>
                                     </div>
                                 ))
