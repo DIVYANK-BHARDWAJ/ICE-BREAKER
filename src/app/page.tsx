@@ -210,7 +210,7 @@ export default function PlayerPage() {
         };
     }, [sessionState?.timerStartTime, sessionState?.timerDuration, clientServerOffset === null, player]);
 
-    // Fetch leaderboard once when session ends
+    // Poll leaderboard when session ends (dynamic, like projector view)
     useEffect(() => {
         if (!sessionState?.isEnded) return;
         const fetchLb = async () => {
@@ -223,6 +223,8 @@ export default function PlayerPage() {
             }
         };
         fetchLb();
+        const interval = setInterval(fetchLb, 3000);
+        return () => clearInterval(interval);
     }, [sessionState?.isEnded]);
 
     // 4. Handle new question index or reset
