@@ -226,7 +226,7 @@ export default function PlayerPage() {
         fetchLb();
         const interval = setInterval(fetchLb, 3000);
         return () => clearInterval(interval);
-    }, [sessionState?.isEnded]);
+    }, [sessionState?.leaderboardRevealed]);
 
     // 4. Handle new question index or reset
     useEffect(() => {
@@ -526,9 +526,138 @@ export default function PlayerPage() {
 
     const isCompleted = currentIdx >= questions.length || sessionState.isEnded;
 
-    // 2. RESULTS END SCREEN (rankings only shown when admin reveals leaderboard)
+    // 2. RESULTS END SCREEN
     if (isCompleted) {
-        const myRank = leaderboard.findIndex(p => p.usn === player.usn) + 1;
+        const myEntry = leaderboard.find(p => p.usn === player.usn);
+        const myRank = myEntry ? myEntry.rank : 0;
+
+        // When admin has revealed the leaderboard, show the full projector-style view
+        if (sessionState?.leaderboardRevealed && leaderboard.length > 0) {
+            const top3 = leaderboard.slice(0, 3);
+            const firstPlace = top3[0] || null;
+            const secondPlace = top3[1] || null;
+            const thirdPlace = top3[2] || null;
+
+            return (
+                <div className="glass-container" style={{ maxWidth: 680 }}>
+                    <div className="glass-card" style={{ padding: '32px 24px', borderRadius: 28, border: '1px solid rgba(0, 242, 254, 0.15)' }}>
+                        <h1 style={{ fontSize: '1.8rem', marginBottom: 4, background: 'linear-gradient(135deg, #fff 30%, var(--primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            Ice Breaker Championships
+                        </h1>
+                        <p className="subtitle" style={{ fontSize: '1rem', marginBottom: 20 }}>
+                            ✨ The battle has concluded. Here are your final champions! ✨
+                        </p>
+
+                        {/* Your result highlight */}
+                        <div style={{ background: 'rgba(0, 242, 254, 0.06)', border: '1px solid rgba(0, 242, 254, 0.2)', borderRadius: 14, padding: '12px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ fontSize: '1.5rem' }}>
+                                    {myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎯'}
+                                </span>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)' }}>Your Result</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{player.name} · {player.correctCount} correct</div>
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontWeight: 800, fontSize: '1.3rem', color: myRank <= 3 ? '#ffd700' : '#fff' }}>{player.score} pts</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{myRank > 0 ? `Rank #${myRank}` : 'Unranked'}</div>
+                            </div>
+                        </div>
+
+                        {/* Celebration Podium */}
+                        <div className="celebration-podium">
+                            {/* 2ND PLACE */}
+                            {secondPlace && (
+                                <div className={`podium-column second ${secondPlace.usn === player.usn ? 'podium-me' : ''}`}>
+                                    <div className="podium-user-info">
+                                        <span className="podium-avatar">🥈</span>
+                                        <div className="podium-user-name" title={secondPlace.name}>{secondPlace.name}</div>
+                                        <div className="podium-user-usn">{secondPlace.usn}</div>
+                                    </div>
+                                    <div className="podium-box">
+                                        <div className="podium-number">2</div>
+                                        <div className="podium-pts">{secondPlace.score} pts</div>
+                                        <div className="podium-correct-badge">{secondPlace.correctCount} correct</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 1ST PLACE */}
+                            {firstPlace && (
+                                <div className={`podium-column first ${firstPlace.usn === player.usn ? 'podium-me' : ''}`}>
+                                    <div className="podium-user-info">
+                                        <span className="podium-avatar">👑</span>
+                                        <div className="podium-user-name" style={{ fontSize: '1.1rem', color: '#ffd700' }} title={firstPlace.name}>{firstPlace.name}</div>
+                                        <div className="podium-user-usn">{firstPlace.usn}</div>
+                                    </div>
+                                    <div className="podium-box">
+                                        <div className="podium-number">1</div>
+                                        <div className="podium-pts" style={{ color: '#ffd700', fontSize: '1.05rem' }}>{firstPlace.score} pts</div>
+                                        <div className="podium-correct-badge" style={{ borderColor: 'rgba(255,215,0,0.3)', color: '#ffd700' }}>{firstPlace.correctCount} correct</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 3RD PLACE */}
+                            {thirdPlace && (
+                                <div className={`podium-column third ${thirdPlace.usn === player.usn ? 'podium-me' : ''}`}>
+                                    <div className="podium-user-info">
+                                        <span className="podium-avatar">🥉</span>
+                                        <div className="podium-user-name" title={thirdPlace.name}>{thirdPlace.name}</div>
+                                        <div className="podium-user-usn">{thirdPlace.usn}</div>
+                                    </div>
+                                    <div className="podium-box">
+                                        <div className="podium-number">3</div>
+                                        <div className="podium-pts">{thirdPlace.score} pts</div>
+                                        <div className="podium-correct-badge">{thirdPlace.correctCount} correct</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Full Rankings */}
+                        <div style={{ marginTop: 28 }}>
+                            <h2 style={{ fontSize: '1.1rem', marginBottom: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5, textAlign: 'center' }}>
+                                Full Rankings &amp; Results
+                            </h2>
+                            <div className="leaderboard-container" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 14, border: '1px solid var(--glass-border)' }}>
+                                <div className="leaderboard-row header" style={{ padding: '12px 18px' }}>
+                                    <div className="rank-col" style={{ fontSize: '0.9rem' }}>Rank</div>
+                                    <div className="name-col" style={{ fontSize: '0.9rem' }}>Player</div>
+                                    <div className="score-col" style={{ fontSize: '0.9rem' }}>Score</div>
+                                </div>
+                                {leaderboard.map((entry) => {
+                                    const isMe = entry.usn === player.usn;
+                                    return (
+                                        <div
+                                            key={entry.usn}
+                                            className={`leaderboard-row ${isMe ? 'current-user' : ''}`}
+                                            style={{ padding: '12px 18px', background: isMe ? 'rgba(0, 242, 254, 0.06)' : entry.rank <= 3 ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+                                        >
+                                            <div className="rank-col" style={{ fontWeight: entry.rank <= 3 ? 700 : 500 }}>
+                                                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+                                            </div>
+                                            <div className="name-col">
+                                                <span className="name-text" style={{ fontSize: '0.9rem', fontWeight: entry.rank <= 3 || isMe ? 700 : 500 }}>
+                                                    {entry.name}{isMe ? ' 👈 you' : ''}
+                                                </span>
+                                                <span className="usn-text" style={{ fontSize: '0.75rem' }}>{entry.usn}</span>
+                                            </div>
+                                            <div className="score-col" style={{ fontWeight: 700, color: entry.rank === 1 ? '#ffd700' : isMe ? 'var(--primary)' : 'var(--text-main)', fontSize: '0.9rem' }}>
+                                                {entry.score} pts ({entry.correctCount} correct)
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Default waiting screen (leaderboard not yet revealed by admin)
         return (
             <div className="glass-container">
                 <div className="glass-card">
@@ -547,33 +676,10 @@ export default function PlayerPage() {
                         </div>
                     </div>
 
-                    {sessionState?.leaderboardRevealed && leaderboard.length > 0 && (
-                        <div style={{ marginTop: 8, marginBottom: 16 }}>
-                            <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 12, fontWeight: 700 }}>Final Rankings</h3>
-                            <div className="leaderboard-container" style={{ maxHeight: 300, overflowY: 'auto' }}>
-                                <div className="leaderboard-row header">
-                                    <div className="rank-col">Rank</div>
-                                    <div className="name-col">Player</div>
-                                    <div className="score-col">Score</div>
-                                </div>
-                                {leaderboard.map((entry) => {
-                                    const isMe = entry.usn === player.usn;
-                                    return (
-                                        <div key={entry.usn} className={`leaderboard-row ${isMe ? 'current-user' : ''}`}>
-                                            <div className="rank-col">
-                                                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
-                                            </div>
-                                            <div className="name-col">
-                                                <span className="name-text">{entry.name}</span>
-                                                <span className="usn-text">{entry.usn}</span>
-                                            </div>
-                                            <div className="score-col">{entry.score} pts</div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
+                        <span className="pulsing-loader" style={{ width: 20, height: 20, borderWidth: 2, margin: 0 }}></span>
+                        Waiting for coordinator to reveal the final leaderboard...
+                    </div>
                 </div>
             </div>
         );

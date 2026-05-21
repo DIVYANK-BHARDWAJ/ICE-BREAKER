@@ -171,7 +171,7 @@ export default function AdminPage() {
         }
     };
 
-    const sendControl = async (action: string, durationOverride?: number) => {
+    const sendControl = async (action: string, durationOverride?: number): Promise<boolean> => {
         setActionError('');
         try {
             const res = await fetch('/api/admin/control', {
@@ -192,11 +192,14 @@ export default function AdminPage() {
                 const serverTimeMs = new Date(data.sessionState.serverTime).getTime();
                 const offset = serverTimeMs - Date.now();
                 setClientServerOffset(offset);
+                return true;
             } else {
                 setActionError(data.error || 'Action failed.');
+                return false;
             }
         } catch (e) {
             setActionError('Connection failed.');
+            return false;
         }
     };
 
@@ -340,7 +343,11 @@ export default function AdminPage() {
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="badge" 
-                            onClick={() => sendControl('reveal-leaderboard')}
+                            onClick={async (e) => {
+                                e.preventDefault();
+                                await sendControl('reveal-leaderboard');
+                                window.open('/leaderboard', '_blank');
+                            }}
                             style={{ 
                                 textDecoration: 'none', 
                                 background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 
@@ -506,7 +513,11 @@ export default function AdminPage() {
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="badge" 
-                        onClick={() => sendControl('reveal-leaderboard')}
+                        onClick={async (e) => {
+                            e.preventDefault();
+                            await sendControl('reveal-leaderboard');
+                            window.open('/leaderboard', '_blank');
+                        }}
                         style={{ 
                             textDecoration: 'none', 
                             background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 

@@ -220,7 +220,7 @@ export default function PublicLeaderboardPage() {
                         {runnersUp.length === 0 && top3.length === 0 ? (
                             <div className="empty-leaderboard">No registrations logged.</div>
                         ) : (
-                            <div className="leaderboard-container" style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.15)', borderRadius: 16, border: '1px solid var(--glass-border)' }}>
+                            <div className="leaderboard-container" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 16, border: '1px solid var(--glass-border)' }}>
                                 <div className="leaderboard-row header" style={{ padding: '16px 24px' }}>
                                     <div className="rank-col" style={{ fontSize: '1rem' }}>Rank</div>
                                     <div className="name-col" style={{ fontSize: '1rem' }}>Player</div>
