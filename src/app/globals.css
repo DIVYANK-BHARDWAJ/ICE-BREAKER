@@ -266,7 +266,7 @@ h1 {
     stroke-linecap: round;
     stroke-dasharray: 282.7; /* 2 * PI * r (r=45) */
     stroke-dashoffset: 0;
-    transition: stroke-dashoffset 0.05s linear, stroke 0.3s ease;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
 }
 
 .timer-text {
@@ -1031,4 +1031,39 @@ h1 {
     90% { transform: translate(2px, 2px) rotate(0deg); }
     100% { transform: translate(1px, -2px) rotate(-1deg); }
 }
+
+/* Mobile responsive styling for projector layouts */
+@media (max-width: 600px) {
+    .projector-layout-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    .celebration-podium {
+        gap: 8px !important;
+        height: auto !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    .podium-column {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin-bottom: 16px;
+    }
+    .podium-column.first {
+        order: 1 !important;
+    }
+    .podium-column.second {
+        order: 2 !important;
+    }
+    .podium-column.third {
+        order: 3 !important;
+    }
+    .podium-box {
+        height: 100px !important;
+    }
+    .podium-column.first .podium-box {
+        height: 120px !important;
+    }
+}
+
 

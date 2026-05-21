@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { questions } from '@/lib/questions';
+import { useSSE } from '@/lib/useSSE';
 
 interface SessionState {
     currentQuestionIndex: number;
@@ -29,12 +30,12 @@ export default function PublicLeaderboardPage() {
 
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Poll session state every 2 seconds and leaderboard every 3 seconds
+    // Poll session state every 500ms and leaderboard every 3 seconds
     useEffect(() => {
         fetchSessionState();
         fetchLeaderboard();
 
-        const sessionInterval = setInterval(fetchSessionState, 2000);
+        const sessionInterval = setInterval(fetchSessionState, 500);
         const leaderboardInterval = setInterval(fetchLeaderboard, 3000);
 
         return () => {
@@ -43,6 +44,12 @@ export default function PublicLeaderboardPage() {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
     }, []);
+
+    // SSE listener for instant updates — bypasses polling interval lag
+    useSSE({
+        'session-update': () => fetchSessionState(),
+        'leaderboard-update': () => fetchLeaderboard(),
+    });
 
     const timerParamsRef = useRef({ startTime: 0, duration: 10 });
     const offsetRef = useRef(0);
@@ -74,7 +81,9 @@ export default function PublicLeaderboardPage() {
             const currentServerTime = Date.now() + offsetRef.current;
             const elapsed = (currentServerTime - startTime) / 1000;
             const remaining = Math.max(0, duration - elapsed);
-            setTimeLeft(remaining);
+            
+            const rounded = Math.ceil(remaining);
+            setTimeLeft((prev) => (prev !== rounded ? rounded : prev));
         };
 
         updateTimer();

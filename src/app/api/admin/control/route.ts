@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { questions } from '@/lib/questions';
 import { invalidateCacheByPrefix } from '@/lib/cache';
 import { checkRateLimit } from '@/lib/rate-limiter';
+import { broadcast } from '@/lib/events';
 
 const DEFAULT_ADMIN_PASSWORD = 'divyank';
 
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
                     timer_start_time = $1, 
                     timer_duration = $2, 
                     is_locked = FALSE, 
-                    show_answers = FALSE
+                    show_answers = FALSE,
+                    leaderboard_revealed = FALSE
                 WHERE id = 1
             `, [now, timerDuration]);
         } else if (action === 'lock') {
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
                 currentIndex += 1;
                 await query(`
                     UPDATE quiz_session_state 
-                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE
+                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE, leaderboard_revealed = FALSE
                     WHERE id = 1
                 `, [currentIndex]);
             }
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
                 currentIndex -= 1;
                 await query(`
                     UPDATE quiz_session_state 
-                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE
+                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE, leaderboard_revealed = FALSE
                     WHERE id = 1
                 `, [currentIndex]);
             }
@@ -75,6 +77,8 @@ export async function POST(request: Request) {
             invalidateCacheByPrefix('leaderboard');
         } else if (action === 'reveal-leaderboard') {
             await query(`UPDATE quiz_session_state SET leaderboard_revealed = TRUE WHERE id = 1`);
+        } else if (action === 'hide-leaderboard') {
+            await query(`UPDATE quiz_session_state SET leaderboard_revealed = FALSE WHERE id = 1`);
         } else if (action === 'status') {
             didMutate = false;
         } else {
@@ -84,6 +88,7 @@ export async function POST(request: Request) {
         if (didMutate) {
             invalidateCacheByPrefix('session-state');
             invalidateCacheByPrefix('leaderboard');
+            broadcast('session-update');
         }
 
         // Fetch updated state

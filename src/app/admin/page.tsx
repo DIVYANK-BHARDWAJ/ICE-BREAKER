@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { questions } from '@/lib/questions';
+import { useSSE } from '@/lib/useSSE';
 
 interface SessionState {
     currentQuestionIndex: number;
@@ -11,6 +12,7 @@ interface SessionState {
     isLocked: boolean;
     isEnded: boolean;
     serverTime: string;
+    leaderboardRevealed: boolean;
 }
 
 interface PlayerStatus {
@@ -35,6 +37,7 @@ export default function AdminPage() {
     const [resetSuccess, setResetSuccess] = useState('');
 
     const [pollingActive, setPollingActive] = useState(true);
+    const [showProjector, setShowProjector] = useState(false);
 
     // Synchronized countdown timer states
     const [clientServerOffset, setClientServerOffset] = useState<number>(0);
@@ -57,7 +60,7 @@ export default function AdminPage() {
         let interval: NodeJS.Timeout;
         if (pollingActive) {
             fetchStatus(); // immediate
-            interval = setInterval(fetchStatus, 2000);
+            interval = setInterval(fetchStatus, 1000);
         }
 
         return () => {
@@ -68,6 +71,12 @@ export default function AdminPage() {
             }
         };
     }, [isAuthenticated, password, pollingActive]);
+
+    // SSE listener for instant updates — bypasses polling interval lag
+    useSSE({
+        'session-update': () => fetchStatus(),
+        'leaderboard-update': () => fetchStatus(),
+    });
 
     const timerParamsRef = useRef({ startTime: 0, duration: 10 });
     const offsetRef = useRef(0);
@@ -99,7 +108,9 @@ export default function AdminPage() {
             const currentServerTime = Date.now() + offsetRef.current;
             const elapsed = (currentServerTime - startTime) / 1000;
             const remaining = Math.max(0, duration - elapsed);
-            setTimeLeft(remaining);
+            
+            const rounded = Math.ceil(remaining);
+            setTimeLeft((prev) => (prev !== rounded ? rounded : prev));
         };
 
         updateTimer();
@@ -309,6 +320,203 @@ export default function AdminPage() {
         );
     }
 
+    if (showProjector) {
+        const top3 = players.slice(0, 3);
+        const runnersUp = players.slice(3);
+        const firstPlace = top3[0] || null;
+        const secondPlace = top3[1] || null;
+        const thirdPlace = top3[2] || null;
+        const isCompleted = sessionState.currentQuestionIndex >= questions.length || sessionState.isEnded;
+        const activeQ = !isCompleted ? questions[sessionState.currentQuestionIndex] : null;
+        const isTimerDanger = timeLeft <= 3 && timeLeft > 0;
+
+        return (
+            <div className="projector-container" style={{ position: 'relative', maxWidth: 1200, margin: '0 auto' }}>
+                <button
+                    onClick={() => setShowProjector(false)}
+                    style={{
+                        position: 'fixed', top: 16, left: 16, zIndex: 100,
+                        padding: '10px 20px', borderRadius: 10, border: 'none',
+                        background: 'rgba(0,0,0,0.6)', color: '#fff', cursor: 'pointer',
+                        fontSize: '0.85rem', fontWeight: 600, backdropFilter: 'blur(8px)'
+                    }}
+                >
+                    ← Back to Dashboard
+                </button>
+
+                {sessionState.isEnded || isCompleted ? (
+                    <div className="glass-card" style={{ padding: 48, borderRadius: 32, border: '1px solid rgba(0, 242, 254, 0.15)' }}>
+                        <h1 style={{ fontSize: '3rem', marginBottom: 8, background: 'linear-gradient(135deg, #fff 30%, var(--primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            Ice Breaker Championships
+                        </h1>
+                        <p className="subtitle" style={{ fontSize: '1.25rem', marginBottom: 12 }}>
+                            ✨ The battle has concluded. Here are your final champions! ✨
+                        </p>
+                        <div className="celebration-podium">
+                            {secondPlace && (
+                                <div className="podium-column second">
+                                    <div className="podium-user-info">
+                                        <span className="podium-avatar">🥈</span>
+                                        <div className="podium-user-name" title={secondPlace.name}>{secondPlace.name}</div>
+                                        <div className="podium-user-usn">{secondPlace.usn}</div>
+                                    </div>
+                                    <div className="podium-box">
+                                        <div className="podium-number">2</div>
+                                        <div className="podium-pts">{secondPlace.score} pts</div>
+                                        <div className="podium-correct-badge">{secondPlace.correctCount} correct</div>
+                                    </div>
+                                </div>
+                            )}
+                            {firstPlace && (
+                                <div className="podium-column first">
+                                    <div className="podium-user-info">
+                                        <span className="podium-avatar">👑</span>
+                                        <div className="podium-user-name" style={{ fontSize: '1.3rem', color: '#ffd700' }} title={firstPlace.name}>{firstPlace.name}</div>
+                                        <div className="podium-user-usn">{firstPlace.usn}</div>
+                                    </div>
+                                    <div className="podium-box">
+                                        <div className="podium-number">1</div>
+                                        <div className="podium-pts" style={{ color: '#ffd700', fontSize: '1.15rem' }}>{firstPlace.score} pts</div>
+                                        <div className="podium-correct-badge" style={{ borderColor: 'rgba(255,215,0,0.3)', color: '#ffd700' }}>{firstPlace.correctCount} correct</div>
+                                    </div>
+                                </div>
+                            )}
+                            {thirdPlace && (
+                                <div className="podium-column third">
+                                    <div className="podium-user-info">
+                                        <span className="podium-avatar">🥉</span>
+                                        <div className="podium-user-name" title={thirdPlace.name}>{thirdPlace.name}</div>
+                                        <div className="podium-user-usn">{thirdPlace.usn}</div>
+                                    </div>
+                                    <div className="podium-box">
+                                        <div className="podium-number">3</div>
+                                        <div className="podium-pts">{thirdPlace.score} pts</div>
+                                        <div className="podium-correct-badge">{thirdPlace.correctCount} correct</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ marginTop: 40 }}>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5, textAlign: 'center' }}>
+                                Full Rankings & Results
+                            </h2>
+                            {runnersUp.length === 0 && top3.length === 0 ? (
+                                <div className="empty-leaderboard">No registrations logged.</div>
+                            ) : (
+                                <div className="leaderboard-container" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 16, border: '1px solid var(--glass-border)' }}>
+                                    <div className="leaderboard-row header" style={{ padding: '16px 24px' }}>
+                                        <div className="rank-col" style={{ fontSize: '1rem' }}>Rank</div>
+                                        <div className="name-col" style={{ fontSize: '1rem' }}>Player</div>
+                                        <div className="score-col" style={{ fontSize: '1rem' }}>Total Score</div>
+                                    </div>
+                                    {players.map((entry, idx) => (
+                                        <div key={entry.usn} className="leaderboard-row" style={{ padding: '14px 24px', background: idx < 3 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                                            <div className="rank-col" style={{ fontWeight: idx < 3 ? 700 : 500 }}>
+                                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                                            </div>
+                                            <div className="name-col">
+                                                <span className="name-text" style={{ fontSize: '1rem', fontWeight: idx < 3 ? 700 : 500 }}>{entry.name}</span>
+                                                <span className="usn-text" style={{ fontSize: '0.8rem' }}>{entry.usn}</span>
+                                            </div>
+                                            <div className="score-col" style={{ fontWeight: 700, color: idx === 0 ? '#ffd700' : 'var(--text-main)', fontSize: '1rem' }}>
+                                                {entry.score} pts ({entry.correctCount} correct)
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'stretch' }}>
+                        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 40, margin: 0, borderRadius: 28 }}>
+                            <span className="badge" style={{ alignSelf: 'center', marginBottom: 12, padding: '8px 18px', fontSize: '0.85rem' }}>
+                                {activeQ?.section}
+                            </span>
+                            <h2 style={{ fontSize: '1.8rem', textAlign: 'center', margin: '8px 0 24px 0' }}>
+                                Question {sessionState.currentQuestionIndex + 1} of {questions.length}
+                            </h2>
+                            <div className="projector-timer-container">
+                                <div className="projector-timer-label">
+                                    {!sessionState.timerStartTime
+                                        ? 'Awaiting release'
+                                        : sessionState.isLocked || timeLeft <= 0
+                                        ? 'Submissions locked'
+                                        : 'Seconds Remaining'}
+                                </div>
+                                <div className={`projector-timer-countdown ${isTimerDanger ? 'danger' : ''}`}>
+                                    {!sessionState.timerStartTime
+                                        ? '--'
+                                        : sessionState.isLocked || timeLeft <= 0
+                                        ? '00'
+                                        : Math.ceil(timeLeft).toString().padStart(2, '0')}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'center', marginTop: 12 }}>
+                                {!sessionState.timerStartTime ? (
+                                    <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '1.1rem' }}>
+                                        <span className="pulsing-loader" style={{ width: 24, height: 24, borderWidth: 2, margin: 0 }}></span>
+                                        Waiting for coordinator to launch question...
+                                    </div>
+                                ) : sessionState.isLocked || timeLeft <= 0 ? (
+                                    <div style={{ color: 'var(--danger)', fontSize: '1.25rem', fontWeight: 800, letterSpacing: 1 }}>
+                                        🔒 ANSWERS LOCKED FOR THIS ROUND
+                                    </div>
+                                ) : (
+                                    <div style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 800, letterSpacing: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                                        <span className="status-indicator active" style={{ position: 'relative', top: 'auto', left: 'auto' }}></span>
+                                        SUBMISSIONS OPEN - PLACE YOUR GUESSES!
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="glass-card" style={{ padding: 40, margin: 0, borderRadius: 28, display: 'flex', flexDirection: 'column' }}>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: 20, borderBottom: '1px solid var(--glass-border)', paddingBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>Standings Leaderboard</span>
+                                <span className="badge" style={{ color: 'var(--text-muted)' }}>{players.length} players</span>
+                            </h2>
+                            {players.length === 0 ? (
+                                <div className="waiting-message" style={{ margin: 'auto' }}>
+                                    Awaiting player registrations...
+                                </div>
+                            ) : (
+                                <div className="leaderboard-container" style={{ flexGrow: 1, overflowY: 'auto' }}>
+                                    <div className="leaderboard-row header" style={{ padding: '12px 16px' }}>
+                                        <div className="rank-col" style={{ width: 50 }}>Rk</div>
+                                        <div className="name-col">Player</div>
+                                        <div className="score-col">Score</div>
+                                    </div>
+                                    {players.map((entry, idx) => (
+                                        <div
+                                            key={entry.usn}
+                                            className="leaderboard-row"
+                                            style={{
+                                                padding: '14px 16px',
+                                                background: idx < 3 ? 'rgba(0, 242, 254, 0.02)' : 'transparent',
+                                                borderColor: idx < 3 ? 'rgba(0, 242, 254, 0.08)' : 'var(--glass-border)'
+                                            }}
+                                        >
+                                            <div className="rank-col" style={{ width: 50, fontWeight: idx < 3 ? 700 : 500 }}>
+                                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                                            </div>
+                                            <div className="name-col">
+                                                <span className="name-text" style={{ fontSize: '1rem', fontWeight: idx < 3 ? 700 : 500 }}>{entry.name}</span>
+                                                <span className="usn-text" style={{ fontSize: '0.75rem' }}>{entry.usn}</span>
+                                            </div>
+                                            <div className="score-col" style={{ fontWeight: 700, fontSize: '1rem' }}>
+                                                {entry.score} pts
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     const currentIdx = sessionState.currentQuestionIndex;
     const isCompleted = currentIdx >= questions.length;
     const q = !isCompleted ? questions[currentIdx] : null;
@@ -338,29 +546,25 @@ export default function AdminPage() {
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 12 }}>
-                        <a 
-                            href="/leaderboard" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="badge" 
-                            onClick={async (e) => {
-                                e.preventDefault();
+                        <button 
+                            onClick={async () => {
                                 await sendControl('reveal-leaderboard');
-                                window.open('/leaderboard', '_blank');
+                                setShowProjector(true);
                             }}
+                            className="badge"
                             style={{ 
-                                textDecoration: 'none', 
                                 background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 
                                 color: '#000', 
                                 fontWeight: 800, 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: 6,
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                border: 'none'
                             }}
                         >
                             Open Projector View ↗
-                        </a>
+                        </button>
                         <button onClick={handleLogout} className="badge" style={{ cursor: 'pointer' }}>Log Out</button>
                     </div>
                 </div>
@@ -508,29 +712,25 @@ export default function AdminPage() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
-                    <a 
-                        href="/leaderboard" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="badge" 
-                        onClick={async (e) => {
-                            e.preventDefault();
+                    <button 
+                        onClick={async () => {
                             await sendControl('reveal-leaderboard');
-                            window.open('/leaderboard', '_blank');
+                            setShowProjector(true);
                         }}
+                        className="badge"
                         style={{ 
-                            textDecoration: 'none', 
                             background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', 
                             color: '#000', 
                             fontWeight: 800, 
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 6,
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            border: 'none'
                         }}
                     >
                         Open Projector View ↗
-                    </a>
+                    </button>
                     <button onClick={handleLogout} className="badge" style={{ cursor: 'pointer' }}>Log Out</button>
                 </div>
             </div>

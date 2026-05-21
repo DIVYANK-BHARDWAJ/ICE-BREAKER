@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { questions } from '@/lib/questions';
 import { invalidateCacheByPrefix } from '@/lib/cache';
+import { broadcast } from '@/lib/events';
 
 export async function POST(request: Request) {
     try {
@@ -153,6 +154,7 @@ export async function POST(request: Request) {
         }
 
         invalidateCacheByPrefix('leaderboard');
+        broadcast('leaderboard-update');
 
         const correctOption = (q.type === 'emoji')
             ? q.answer

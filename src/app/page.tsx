@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { questions } from '@/lib/questions';
+import { useSSE } from '@/lib/useSSE';
 
 interface Player {
     name: string;
@@ -95,7 +96,7 @@ export default function PlayerPage() {
         // Fetch session state immediately
         fetchSessionState();
 
-        const sessionInterval = setInterval(fetchSessionState, 2000);
+        const sessionInterval = setInterval(fetchSessionState, 500);
 
         return () => {
             clearInterval(sessionInterval);
@@ -103,7 +104,10 @@ export default function PlayerPage() {
         };
     }, [player]);
 
-
+    // 3. SSE listener for instant updates — bypasses polling interval lag
+    useSSE({
+        'session-update': () => fetchSessionState(),
+    });
 
     const autoSubmitAnswer = async (answerVal: string, timeLeftAtCall: number = 0) => {
         const latest = stateRef.current;
@@ -192,7 +196,9 @@ export default function PlayerPage() {
             const currentServerTime = Date.now() + offsetRef.current;
             const elapsed = (currentServerTime - startTime) / 1000;
             const remaining = Math.max(0, duration - elapsed);
-            setTimeLeft(remaining);
+            
+            const rounded = Math.ceil(remaining);
+            setTimeLeft((prev) => (prev !== rounded ? rounded : prev));
             
             const latest = stateRef.current;
             if (remaining <= 0 && latest.q && latest.submittedAnswerIndex !== latest.currentIdx && !latest.isSubmitting) {

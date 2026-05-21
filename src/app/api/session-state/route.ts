@@ -3,7 +3,7 @@ import { query } from '@/lib/db';
 import { withDedup, invalidateCacheByPrefix } from '@/lib/cache';
 
 const CACHE_KEY = 'session-state';
-const CACHE_TTL = 2000;
+const CACHE_TTL = 400;
 
 export async function GET(request: Request) {
     try {
