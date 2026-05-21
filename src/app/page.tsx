@@ -220,9 +220,11 @@ export default function PlayerPage() {
         };
     }, [sessionState?.timerStartTime, sessionState?.timerDuration, clientServerOffset === null, player]);
 
-    // Poll leaderboard when admin reveals leaderboard (dynamic, like projector view)
+    // Poll leaderboard when session ends OR admin reveals leaderboard.
+    // We fetch even before leaderboard is revealed so the player can see their own real score
+    // on the waiting screen (player.score in localStorage is always stale 0).
     useEffect(() => {
-        if (!sessionState?.leaderboardRevealed) return;
+        if (!sessionState?.isEnded && !sessionState?.leaderboardRevealed) return;
         const fetchLb = async () => {
             try {
                 const res = await fetch('/api/leaderboard');
@@ -235,7 +237,7 @@ export default function PlayerPage() {
         fetchLb();
         const interval = setInterval(fetchLb, 3000);
         return () => clearInterval(interval);
-    }, [sessionState?.leaderboardRevealed]);
+    }, [sessionState?.isEnded, sessionState?.leaderboardRevealed]);
 
     // 4. Handle new question index or reset
     useEffect(() => {
@@ -687,13 +689,13 @@ export default function PlayerPage() {
                     <div className="emoji-feedback">🎉</div>
                     
                     <div className="result-score-circle">
-                        <div className="result-score-val">{player.score}</div>
+                        <div className="result-score-val">{myEntry ? myEntry.score : player.score}</div>
                         <div className="result-score-label">Points</div>
                     </div>
 
                     <div className="result-summary-grid" style={{ marginBottom: 24 }}>
                         <div className="result-summary-card">
-                            <div className="result-card-val">{player.correctCount}/{questions.length}</div>
+                            <div className="result-card-val">{myEntry ? myEntry.correctCount : player.correctCount}/{questions.length}</div>
                             <div className="result-card-lbl">Correct Answers</div>
                         </div>
                     </div>
