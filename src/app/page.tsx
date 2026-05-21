@@ -578,11 +578,11 @@ export default function PlayerPage() {
                                 </span>
                                 <div>
                                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)' }}>Your Result</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{player.name} · {player.correctCount} correct</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{player.name} · {myEntry ? myEntry.correctCount : 0} correct</div>
                                 </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontWeight: 800, fontSize: '1.3rem', color: myRank <= 3 ? '#ffd700' : '#fff' }}>{player.score} pts</div>
+                                <div style={{ fontWeight: 800, fontSize: '1.3rem', color: myRank <= 3 ? '#ffd700' : '#fff' }}>{myEntry ? myEntry.score : 0} pts</div>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{myRank > 0 ? `Rank #${myRank}` : 'Unranked'}</div>
                             </div>
                         </div>
