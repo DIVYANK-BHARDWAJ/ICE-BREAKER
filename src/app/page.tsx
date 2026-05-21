@@ -148,6 +148,9 @@ export default function PlayerPage() {
                 console.log('Auto-submitted answer successfully recorded:', data);
             } else {
                 console.error('Auto-submitted answer error:', data.error);
+                if (data.error === 'Player is not registered.') {
+                    logout();
+                }
             }
         } catch (e) {
             console.error('Error auto-submitting answer:', e);
@@ -272,9 +275,19 @@ export default function PlayerPage() {
 
     const fetchSessionState = async () => {
         try {
-            const res = await fetch('/api/session-state');
+            const currentPlayer = stateRef.current.player;
+            const url = currentPlayer?.usn 
+                ? `/api/session-state?usn=${encodeURIComponent(currentPlayer.usn)}` 
+                : '/api/session-state';
+            const res = await fetch(url);
             const data = await res.json();
             if (data.success) {
+                if (currentPlayer?.usn && data.playerExists === false) {
+                    console.warn('Player no longer exists in database (session reset). Logging out...');
+                    logout();
+                    return;
+                }
+
                 const serverTimeMs = new Date(data.serverTime).getTime();
                 const offset = serverTimeMs - Date.now();
                 setClientServerOffset(offset);
@@ -376,6 +389,9 @@ export default function PlayerPage() {
                 console.log('Answer recorded successfully:', data);
             } else {
                 console.error('Answer submission error:', data.error);
+                if (data.error === 'Player is not registered.') {
+                    logout();
+                }
             }
         } catch (e) {
             console.error('Error submitting answer:', e);
