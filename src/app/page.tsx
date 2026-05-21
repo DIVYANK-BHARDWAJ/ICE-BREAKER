@@ -707,7 +707,9 @@ export default function PlayerPage() {
         );
     }
 
-    const isLocked = sessionState.isLocked || timeLeft <= 0;
+    // Only treat timeLeft <= 0 as a lock condition once we've received the first server time sync.
+    // Before sync, clientServerOffset is null and timeLeft defaults to 0, which would falsely lock the UI.
+    const isLocked = sessionState.isLocked || (clientServerOffset !== null && timeLeft <= 0);
     const hasSubmitted = submittedAnswerIndex === currentIdx;
 
     // SVG Circular timer progress calculation
