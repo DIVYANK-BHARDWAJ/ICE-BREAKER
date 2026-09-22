@@ -9,9 +9,9 @@ export interface Question {
 }
 
 export const questions: Question[] = [
-    // Section 1 — Kahoot MCQ (10s timer each)
+    // Section 1 — ProtocolX MCQ (10s timer each)
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq",
         question: "Which app introduced \"Stories\" first?",
         options: ["Instagram", "Snapchat", "Facebook", "WhatsApp"],
@@ -19,7 +19,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq",
         question: "Which animal is in the Firefox logo?",
         options: ["Swift Fox", "Red Panda", "Genus Vulpes", "Red Fox"],
@@ -27,7 +27,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq",
         question: "Which company invented the first mobile phone?",
         options: ["Nokia", "Apple", "Motorola", "Samsung"],
@@ -35,7 +35,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq",
         question: "Which company makes PlayStation?",
         options: ["Microsoft", "Nintendo", "Sony", "Asus"],
@@ -43,7 +43,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq-image",
         question: "Which is the real BMW logo?",
         options: ["Option A", "Option B"],
@@ -52,7 +52,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq-image",
         question: "Which is the real Microsoft logo?",
         options: ["Option A", "Option B"],
@@ -61,7 +61,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq",
         question: "Which platform was originally a dating app idea?",
         options: ["YouTube", "Instagram", "Snapchat", "Facebook"],
@@ -69,7 +69,7 @@ export const questions: Question[] = [
         timer: 10
     },
     {
-        section: "Section 1 — Kahoot MCQ",
+        section: "Section 1 — ProtocolX MCQ",
         type: "mcq",
         question: "Which came first?",
         options: ["Netflx", "Google", "YouTube", "Twitter"],

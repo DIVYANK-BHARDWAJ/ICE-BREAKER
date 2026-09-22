@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-    title: 'Ice Breaker Live Quiz',
-    description: 'An interactive live quiz platform for breaking the ice. Connect with your friends, guess logos, and solve emoji puzzles in real-time!',
+    title: 'ICE BREAKING // Protocol X Challenge',
+    description: 'An interactive live challenge platform. Connect, compete in logo challenges, and solve real-time puzzles.',
     icons: {
         icon: '/favicon.ico',
     }
@@ -16,9 +16,14 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
+            <head>
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            </head>
             <body>
                 {children}
             </body>
         </html>
     );
 }
+

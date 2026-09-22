@@ -154,7 +154,9 @@ export async function POST(request: Request) {
         }
 
         invalidateCacheByPrefix('leaderboard');
+        invalidateCacheByPrefix('session-state');
         broadcast('leaderboard-update');
+        broadcast('response-update');
 
         const correctOption = (q.type === 'emoji')
             ? q.answer

@@ -27,7 +27,9 @@ export async function POST(request: Request) {
                 timer_duration = 10,
                 show_answers = FALSE,
                 is_locked = FALSE,
-                is_ended = FALSE
+                is_ended = FALSE,
+                badges_awarded = FALSE,
+                leaderboard_revealed = FALSE
             WHERE id = 1
         `);
 

@@ -8,24 +8,49 @@ const CACHE_TTL = 400;
 export async function GET(request: Request) {
     try {
         const data = await withDedup(CACHE_KEY, CACHE_TTL, async () => {
-            const res = await query(`
-                SELECT 
-                    current_question_index, 
-                    timer_start_time, 
-                    timer_duration, 
-                    show_answers, 
-                    is_locked,
-                    is_ended,
-                    leaderboard_revealed
-                FROM quiz_session_state 
-                WHERE id = 1
-            `);
+            const [res, statsRes, distRes] = await Promise.all([
+                query(`
+                    SELECT 
+                        current_question_index, 
+                        timer_start_time, 
+                        timer_duration, 
+                        show_answers, 
+                        is_locked,
+                        is_ended,
+                        leaderboard_revealed,
+                        badges_awarded
+                    FROM quiz_session_state 
+                    WHERE id = 1
+                `),
+                query(`
+                    SELECT 
+                        (SELECT COUNT(*) FROM players)::int as total_players,
+                        (SELECT COUNT(DISTINCT player_usn) FROM player_answers WHERE question_index = (SELECT current_question_index FROM quiz_session_state WHERE id = 1))::int as total_responses
+                `),
+                query(`
+                    SELECT selected_answer, COUNT(*)::int as count
+                    FROM player_answers
+                    WHERE question_index = (SELECT current_question_index FROM quiz_session_state WHERE id = 1)
+                    AND selected_answer IS NOT NULL
+                    GROUP BY selected_answer
+                `)
+            ]);
 
             if (res.rows.length === 0) {
                 return null;
             }
 
             const state = res.rows[0];
+            const stats = statsRes.rows[0] || { total_players: 0, total_responses: 0 };
+
+            const optionDistribution: Record<string, number> = {};
+            if (state.show_answers) {
+                distRes.rows.forEach(r => {
+                    if (r.selected_answer !== null) {
+                        optionDistribution[r.selected_answer] = r.count;
+                    }
+                });
+            }
 
             return {
                 success: true,
@@ -36,6 +61,10 @@ export async function GET(request: Request) {
                 isLocked: state.is_locked,
                 isEnded: state.is_ended,
                 leaderboardRevealed: state.leaderboard_revealed,
+                badgesAwarded: !!state.badges_awarded,
+                totalPlayers: stats.total_players,
+                totalResponses: stats.total_responses,
+                optionDistribution: state.show_answers ? optionDistribution : undefined,
             };
         });
 
@@ -47,15 +76,42 @@ export async function GET(request: Request) {
         const usn = searchParams.get('usn');
 
         let playerExists: boolean | undefined = undefined;
+        let playerScore: number | undefined = undefined;
+        let playerCorrectCount: number | undefined = undefined;
+        let playerCurrentAnswer: any = null;
+        let playerBadges: number[] = [];
+
         if (usn) {
-            const playerRes = await query('SELECT 1 FROM players WHERE usn = $1', [usn]);
-            playerExists = playerRes.rows.length > 0;
+            const [pRes, paRes, badgesRes] = await Promise.all([
+                query('SELECT score, correct_count FROM players WHERE usn = $1', [usn]),
+                query(
+                    'SELECT selected_answer, is_correct, points_earned, mascot_badge FROM player_answers WHERE player_usn = $1 AND question_index = $2', 
+                    [usn, data.currentQuestionIndex]
+                ),
+                query(
+                    'SELECT mascot_badge FROM player_answers WHERE player_usn = $1 AND mascot_badge IS NOT NULL ORDER BY question_index ASC',
+                    [usn]
+                )
+            ]);
+
+            playerExists = pRes.rows.length > 0;
+            if (playerExists) {
+                playerScore = pRes.rows[0].score;
+                playerCorrectCount = pRes.rows[0].correct_count;
+            }
+            if (paRes.rows.length > 0) {
+                playerCurrentAnswer = paRes.rows[0];
+            }
+            playerBadges = badgesRes.rows.map(r => r.mascot_badge);
         }
 
-        // serverTime is always fresh (never cached) for accurate clock sync
         return NextResponse.json({
             ...data,
             playerExists,
+            playerScore,
+            playerCorrectCount,
+            playerCurrentAnswer,
+            playerBadges,
             serverTime: new Date().toISOString()
         });
     } catch (error: any) {

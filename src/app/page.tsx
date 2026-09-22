@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { questions } from '@/lib/questions';
 import { useSSE } from '@/lib/useSSE';
+import { getMascotSplits, OPTION_GRADIENTS, OPTION_BORDER_COLORS, OPTION_GLOW_COLORS, MASCOT_DETAILS } from '@/lib/mascots';
 
 interface Player {
     name: string;
@@ -21,6 +22,10 @@ interface SessionState {
     isEnded: boolean;
     serverTime: string;
     leaderboardRevealed: boolean;
+    badgesAwarded?: boolean;
+    totalPlayers?: number;
+    totalResponses?: number;
+    optionDistribution?: Record<string, number>;
 }
 
 export default function PlayerPage() {
@@ -29,6 +34,9 @@ export default function PlayerPage() {
     const [nameInput, setNameInput] = useState('');
     const [usnInput, setUsnInput] = useState('');
     const [regError, setRegError] = useState('');
+
+    const [playerCurrentAnswer, setPlayerCurrentAnswer] = useState<{ selected_answer: string; is_correct: boolean; points_earned: number; mascot_badge: number | null } | null>(null);
+    const [playerBadges, setPlayerBadges] = useState<number[]>([]);
 
     // Game states
     const [sessionState, setSessionState] = useState<SessionState | null>(null);
@@ -44,8 +52,36 @@ export default function PlayerPage() {
         isLate: boolean;
     } | null>(null);
 
-    // Leaderboard state (only populated after session ends)
-    const [leaderboard, setLeaderboard] = useState<{ rank: number; name: string; usn: string; score: number; correctCount: number }[]>([]);
+    // Leaderboard state
+    const [leaderboard, setLeaderboard] = useState<{ rank: number; name: string; usn: string; score: number; correctCount: number; earnedBadges?: number[] }[]>([]);
+
+    const renderBadges = (badges?: number[]) => {
+        if (!badges || badges.length === 0) return null;
+        return (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, alignItems: 'center' }}>
+                {badges.map((bId, idx) => {
+                    const mascot = MASCOT_DETAILS[bId];
+                    if (!mascot) return null;
+                    return (
+                        <img 
+                            key={idx} 
+                            src={mascot.image} 
+                            alt={mascot.name} 
+                            title={`${mascot.name} (${mascot.title})`}
+                            style={{ 
+                                width: 24, 
+                                height: 24, 
+                                borderRadius: '50%', 
+                                border: '1.5px solid var(--accent)',
+                                boxShadow: '0 0 6px var(--accent-glow)',
+                                objectFit: 'cover'
+                            }} 
+                        />
+                    );
+                })}
+            </div>
+        );
+    };
 
     // Written round text state
     const [emojiTextGuess, setEmojiTextGuess] = useState('');
@@ -107,6 +143,7 @@ export default function PlayerPage() {
     // 3. SSE listener for instant updates — bypasses polling interval lag
     useSSE({
         'session-update': () => fetchSessionState(),
+        'response-update': () => fetchSessionState(),
     });
 
     const autoSubmitAnswer = async (answerVal: string, timeLeftAtCall: number = 0) => {
@@ -310,8 +347,25 @@ export default function PlayerPage() {
                     isLocked: data.isLocked,
                     isEnded: data.isEnded,
                     serverTime: data.serverTime,
-                    leaderboardRevealed: data.leaderboardRevealed
+                    leaderboardRevealed: data.leaderboardRevealed,
+                    badgesAwarded: data.badgesAwarded,
+                    totalPlayers: data.totalPlayers,
+                    totalResponses: data.totalResponses,
+                    optionDistribution: data.optionDistribution
                 });
+
+                if (data.playerCurrentAnswer) setPlayerCurrentAnswer(data.playerCurrentAnswer);
+                if (data.playerBadges) setPlayerBadges(data.playerBadges);
+
+                if (data.playerScore !== undefined && data.playerScore !== null) {
+                    setPlayer(prev => {
+                        if (!prev) return prev;
+                        if (prev.score === data.playerScore && prev.correctCount === data.playerCorrectCount) return prev;
+                        const updated = { ...prev, score: data.playerScore, correctCount: data.playerCorrectCount ?? prev.correctCount };
+                        localStorage.setItem('quiz_player', JSON.stringify(updated));
+                        return updated;
+                    });
+                }
 
                 // Immediately fetch leaderboard when admin reveals it
                 if (data.leaderboardRevealed && !stateRef.current.sessionState?.leaderboardRevealed) {
@@ -511,16 +565,18 @@ export default function PlayerPage() {
         return (
             <div className="glass-container">
                 <div className="glass-card">
-                    <h1>Ice Breaker Live</h1>
-                    <div className="subtitle">Enter your details to join the session</div>
+                    <h1>ICE BREAKING</h1>
+                    <div className="subtitle" style={{ letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: '0.85rem' }}>
+                        Protocol X // Participant Registration
+                    </div>
 
                     <form onSubmit={handleRegistration}>
                         <div className="form-group">
-                            <label className="form-label">Your Name</label>
+                            <label className="form-label">Participant Name</label>
                             <input 
                                 type="text" 
                                 className="form-control" 
-                                placeholder="e.g. John Doe"
+                                placeholder="e.g. Alex Mercer"
                                 value={nameInput}
                                 onChange={(e) => setNameInput(e.target.value)}
                                 required
@@ -541,7 +597,7 @@ export default function PlayerPage() {
 
                         {regError && <div className="answer-reveal wrong" style={{ marginTop: 0, marginBottom: 20 }}>❌ {regError}</div>}
 
-                        <button type="submit" className="btn">Join Quiz</button>
+                        <button type="submit" className="btn">ENTER PROTOCOL X</button>
                     </form>
                 </div>
             </div>
@@ -550,143 +606,161 @@ export default function PlayerPage() {
 
     const isCompleted = currentIdx >= questions.length || sessionState.isEnded;
 
-    // 2. RESULTS END SCREEN
-    if (isCompleted) {
+    // 2. LIVE PROJECTOR STANDINGS INTERCEPT (AT ANY POINT WHEN ADMIN OPENS PROJECTOR VIEW)
+    if (sessionState?.leaderboardRevealed && leaderboard.length > 0) {
         const myEntry = leaderboard.find(p => p.usn === player.usn);
         const myRank = myEntry ? myEntry.rank : 0;
+        const top3 = leaderboard.slice(0, 3);
+        const firstPlace = top3[0] || null;
+        const secondPlace = top3[1] || null;
+        const thirdPlace = top3[2] || null;
 
-        // When admin has revealed the leaderboard, show the full projector-style view
-        if (sessionState?.leaderboardRevealed && leaderboard.length > 0) {
-            const top3 = leaderboard.slice(0, 3);
-            const firstPlace = top3[0] || null;
-            const secondPlace = top3[1] || null;
-            const thirdPlace = top3[2] || null;
+        return (
+            <div className="glass-container" style={{ maxWidth: 680 }}>
+                <div className="glass-card" style={{ padding: '32px 24px', borderRadius: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span className="badge" style={{ background: 'var(--surface-raised)', borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 800 }}>
+                            LIVE PROJECTOR STANDINGS
+                        </span>
+                        <span className="badge">
+                            Question {currentIdx + 1} of {questions.length}
+                        </span>
+                    </div>
 
-            return (
-                <div className="glass-container" style={{ maxWidth: 680 }}>
-                    <div className="glass-card" style={{ padding: '32px 24px', borderRadius: 28, border: '1px solid rgba(0, 242, 254, 0.15)' }}>
-                        <h1 style={{ fontSize: '1.8rem', marginBottom: 4, background: 'linear-gradient(135deg, #fff 30%, var(--primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            Ice Breaker Championships
-                        </h1>
-                        <p className="subtitle" style={{ fontSize: '1rem', marginBottom: 20 }}>
-                            ✨ The battle has concluded. Here are your final champions! ✨
-                        </p>
+                    <h1 style={{ fontSize: '1.8rem', marginBottom: 4 }}>
+                        PROTOCOL X // STANDINGS
+                    </h1>
+                    <p className="subtitle" style={{ fontSize: '0.9rem', marginBottom: 20 }}>
+                        {isCompleted 
+                            ? 'The challenge has concluded. Official final ranking results:' 
+                            : `Standings & Mascot Badges Earned Till Question ${currentIdx + 1}:`}
+                    </p>
 
-                        {/* Your result highlight */}
-                        <div style={{ background: 'rgba(0, 242, 254, 0.06)', border: '1px solid rgba(0, 242, 254, 0.2)', borderRadius: 14, padding: '12px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <span style={{ fontSize: '1.5rem' }}>
-                                    {myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎯'}
-                                </span>
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)' }}>Your Result</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{player.name} · {myEntry ? myEntry.correctCount : 0} correct</div>
-                                </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontWeight: 800, fontSize: '1.3rem', color: myRank <= 3 ? '#ffd700' : '#fff' }}>{myEntry ? myEntry.score : 0} pts</div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{myRank > 0 ? `Rank #${myRank}` : 'Unranked'}</div>
+                    {/* Participant's Personal Standing Banner */}
+                    <div style={{ background: 'var(--surface-raised)', border: '1px solid var(--accent)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, boxShadow: '0 0 16px var(--accent-glow)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ fontSize: '1.5rem' }}>
+                                {myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎯'}
+                            </span>
+                            <div>
+                                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Standing</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{player.name} · {myEntry ? myEntry.correctCount : 0} correct</div>
                             </div>
                         </div>
-
-                        {/* Celebration Podium */}
-                        <div className="celebration-podium">
-                            {/* 2ND PLACE */}
-                            {secondPlace && (
-                                <div className={`podium-column second ${secondPlace.usn === player.usn ? 'podium-me' : ''}`}>
-                                    <div className="podium-user-info">
-                                        <span className="podium-avatar">🥈</span>
-                                        <div className="podium-user-name" title={secondPlace.name}>{secondPlace.name}</div>
-                                        <div className="podium-user-usn">{secondPlace.usn}</div>
-                                    </div>
-                                    <div className="podium-box">
-                                        <div className="podium-number">2</div>
-                                        <div className="podium-pts">{secondPlace.score} pts</div>
-                                        <div className="podium-correct-badge">{secondPlace.correctCount} correct</div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* 1ST PLACE */}
-                            {firstPlace && (
-                                <div className={`podium-column first ${firstPlace.usn === player.usn ? 'podium-me' : ''}`}>
-                                    <div className="podium-user-info">
-                                        <span className="podium-avatar">👑</span>
-                                        <div className="podium-user-name" style={{ fontSize: '1.1rem', color: '#ffd700' }} title={firstPlace.name}>{firstPlace.name}</div>
-                                        <div className="podium-user-usn">{firstPlace.usn}</div>
-                                    </div>
-                                    <div className="podium-box">
-                                        <div className="podium-number">1</div>
-                                        <div className="podium-pts" style={{ color: '#ffd700', fontSize: '1.05rem' }}>{firstPlace.score} pts</div>
-                                        <div className="podium-correct-badge" style={{ borderColor: 'rgba(255,215,0,0.3)', color: '#ffd700' }}>{firstPlace.correctCount} correct</div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* 3RD PLACE */}
-                            {thirdPlace && (
-                                <div className={`podium-column third ${thirdPlace.usn === player.usn ? 'podium-me' : ''}`}>
-                                    <div className="podium-user-info">
-                                        <span className="podium-avatar">🥉</span>
-                                        <div className="podium-user-name" title={thirdPlace.name}>{thirdPlace.name}</div>
-                                        <div className="podium-user-usn">{thirdPlace.usn}</div>
-                                    </div>
-                                    <div className="podium-box">
-                                        <div className="podium-number">3</div>
-                                        <div className="podium-pts">{thirdPlace.score} pts</div>
-                                        <div className="podium-correct-badge">{thirdPlace.correctCount} correct</div>
-                                    </div>
-                                </div>
-                            )}
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.3rem', color: '#FFFFFF' }}>{myEntry ? myEntry.score : 0} PTS</div>
+                            <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{myRank > 0 ? `RANK #${myRank}` : 'UNRANKED'}</div>
                         </div>
+                    </div>
 
-                        {/* Full Rankings */}
-                        <div style={{ marginTop: 28 }}>
-                            <h2 style={{ fontSize: '1.1rem', marginBottom: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5, textAlign: 'center' }}>
-                                Full Rankings &amp; Results
-                            </h2>
-                            <div className="leaderboard-container" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 14, border: '1px solid var(--glass-border)' }}>
-                                <div className="leaderboard-row header" style={{ padding: '12px 18px' }}>
-                                    <div className="rank-col" style={{ fontSize: '0.9rem' }}>Rank</div>
-                                    <div className="name-col" style={{ fontSize: '0.9rem' }}>Player</div>
-                                    <div className="score-col" style={{ fontSize: '0.9rem' }}>Score</div>
+                    {/* Celebration Podium */}
+                    <div className="celebration-podium">
+                        {/* 2ND PLACE */}
+                        {secondPlace && (
+                            <div className={`podium-column second ${secondPlace.usn === player.usn ? 'podium-me' : ''}`}>
+                                <div className="podium-user-info">
+                                    <span className="podium-avatar">🥈</span>
+                                    <div className="podium-user-name" title={secondPlace.name}>{secondPlace.name}</div>
+                                    <div className="podium-user-usn">{secondPlace.usn}</div>
+                                    {renderBadges(secondPlace.earnedBadges)}
                                 </div>
-                                {leaderboard.map((entry) => {
-                                    const isMe = entry.usn === player.usn;
-                                    return (
-                                        <div
-                                            key={entry.usn}
-                                            className={`leaderboard-row ${isMe ? 'current-user' : ''}`}
-                                            style={{ padding: '12px 18px', background: isMe ? 'rgba(0, 242, 254, 0.06)' : entry.rank <= 3 ? 'rgba(255,255,255,0.02)' : 'transparent' }}
-                                        >
-                                            <div className="rank-col" style={{ fontWeight: entry.rank <= 3 ? 700 : 500 }}>
-                                                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
-                                            </div>
-                                            <div className="name-col">
-                                                <span className="name-text" style={{ fontSize: '0.9rem', fontWeight: entry.rank <= 3 || isMe ? 700 : 500 }}>
-                                                    {entry.name}{isMe ? ' 👈 you' : ''}
-                                                </span>
-                                                <span className="usn-text" style={{ fontSize: '0.75rem' }}>{entry.usn}</span>
-                                            </div>
-                                            <div className="score-col" style={{ fontWeight: 700, color: entry.rank === 1 ? '#ffd700' : isMe ? 'var(--primary)' : 'var(--text-main)', fontSize: '0.9rem' }}>
-                                                {entry.score} pts ({entry.correctCount} correct)
-                                            </div>
+                                <div className="podium-box">
+                                    <div className="podium-number">2</div>
+                                    <div className="podium-pts">{secondPlace.score} pts</div>
+                                    <div className="podium-correct-badge">{secondPlace.correctCount} correct</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 1ST PLACE */}
+                        {firstPlace && (
+                            <div className={`podium-column first ${firstPlace.usn === player.usn ? 'podium-me' : ''}`}>
+                                <div className="podium-user-info">
+                                    <span className="podium-avatar">👑</span>
+                                    <div className="podium-user-name" style={{ fontSize: '1.1rem', color: 'var(--metal-light)' }} title={firstPlace.name}>{firstPlace.name}</div>
+                                    <div className="podium-user-usn">{firstPlace.usn}</div>
+                                    {renderBadges(firstPlace.earnedBadges)}
+                                </div>
+                                <div className="podium-box">
+                                    <div className="podium-number">1</div>
+                                    <div className="podium-pts" style={{ color: 'var(--accent)', fontSize: '1.05rem' }}>{firstPlace.score} pts</div>
+                                    <div className="podium-correct-badge" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>{firstPlace.correctCount} correct</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3RD PLACE */}
+                        {thirdPlace && (
+                            <div className={`podium-column third ${thirdPlace.usn === player.usn ? 'podium-me' : ''}`}>
+                                <div className="podium-user-info">
+                                    <span className="podium-avatar">🥉</span>
+                                    <div className="podium-user-name" title={thirdPlace.name}>{thirdPlace.name}</div>
+                                    <div className="podium-user-usn">{thirdPlace.usn}</div>
+                                    {renderBadges(thirdPlace.earnedBadges)}
+                                </div>
+                                <div className="podium-box">
+                                    <div className="podium-number">3</div>
+                                    <div className="podium-pts">{thirdPlace.score} pts</div>
+                                    <div className="podium-correct-badge">{thirdPlace.correctCount} correct</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Full Rankings & Badges */}
+                    <div style={{ marginTop: 28 }}>
+                        <h2 style={{ fontSize: '1rem', marginBottom: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.12em', textAlign: 'center' }}>
+                            Full Standings &amp; Mascot Badges Earned
+                        </h2>
+                        <div className="leaderboard-container">
+                            <div className="leaderboard-row header" style={{ padding: '12px 18px' }}>
+                                <div className="rank-col" style={{ fontSize: '0.8rem' }}>Rank</div>
+                                <div className="name-col" style={{ fontSize: '0.8rem' }}>Participant</div>
+                                <div className="score-col" style={{ fontSize: '0.8rem' }}>Score &amp; Badges</div>
+                            </div>
+                            {leaderboard.map((entry) => {
+                                const isMe = entry.usn === player.usn;
+                                return (
+                                    <div
+                                        key={entry.usn}
+                                        className={`leaderboard-row ${isMe ? 'current-user' : ''}`}
+                                        style={{ padding: '12px 18px', alignItems: 'center' }}
+                                    >
+                                        <div className="rank-col" style={{ fontWeight: entry.rank <= 3 ? 700 : 500 }}>
+                                            {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div className="name-col">
+                                            <span className="name-text" style={{ fontSize: '0.9rem', fontWeight: entry.rank <= 3 || isMe ? 700 : 500 }}>
+                                                {entry.name}{isMe ? ' ◄ YOU' : ''}
+                                            </span>
+                                            <span className="usn-text" style={{ fontSize: '0.75rem' }}>{entry.usn}</span>
+                                        </div>
+                                        <div className="score-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                                            <span style={{ fontWeight: 700, color: entry.rank === 1 ? 'var(--accent)' : isMe ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                                {entry.score} pts ({entry.correctCount} correct)
+                                            </span>
+                                            {renderBadges(entry.earnedBadges)}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
-            );
-        }
+            </div>
+        );
+    }
+
+    // 3. RESULTS END SCREEN (WHEN QUIZ FINISHES BUT LEADERBOARD NOT YET REVEALED)
+    if (isCompleted) {
+        const myEntry = leaderboard.find(p => p.usn === player.usn);
 
         // Default waiting screen (leaderboard not yet revealed by admin)
         return (
             <div className="glass-container">
                 <div className="glass-card">
-                    <h1>Ice Breaker Completed!</h1>
-                    <div className="emoji-feedback">🎉</div>
+                    <h1>PROTOCOL X COMPLETED</h1>
+                    <div className="emoji-feedback">⚡</div>
                     
                     <div className="result-score-circle">
                         <div className="result-score-val">{myEntry ? myEntry.score : player.score}</div>
@@ -696,13 +770,13 @@ export default function PlayerPage() {
                     <div className="result-summary-grid" style={{ marginBottom: 24 }}>
                         <div className="result-summary-card">
                             <div className="result-card-val">{myEntry ? myEntry.correctCount : player.correctCount}/{questions.length}</div>
-                            <div className="result-card-lbl">Correct Answers</div>
+                            <div className="result-card-lbl">Correct Submissions</div>
                         </div>
                     </div>
 
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
-                        <span className="pulsing-loader" style={{ width: 20, height: 20, borderWidth: 2, margin: 0 }}></span>
-                        Waiting for coordinator to reveal the final leaderboard...
+                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
+                        <span className="pulsing-loader" style={{ width: 18, height: 18, borderWidth: 2, margin: 0 }}></span>
+                        Awaiting coordinator leaderboard reveal...
                     </div>
                 </div>
             </div>
@@ -724,14 +798,14 @@ export default function PlayerPage() {
     return (
         <div className="glass-container">
             {/* Top Score Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px 12px 8px', borderBottom: '1px solid var(--glass-border)', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 20 }}>
                 <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Player</div>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary)' }}>{player.name}</div>
+                    <div className="micro-label" style={{ fontSize: '0.7rem' }}>PARTICIPANT</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>{player.name}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>My Score</div>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{player.score} pts</div>
+                    <div className="micro-label" style={{ fontSize: '0.7rem' }}>TOTAL SCORE</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>{player.score} PTS</div>
                 </div>
             </div>
 
@@ -745,6 +819,202 @@ export default function PlayerPage() {
                         Get ready! The coordinator will release this question shortly...
                     </div>
                 </div>
+            ) : sessionState.showAnswers && sessionState.badgesAwarded ? (
+                /* DEDICATED MASCOT BADGE UNLOCK SCREEN */
+                (() => {
+                    const isCorrect = playerCurrentAnswer ? playerCurrentAnswer.is_correct : (submitResult ? submitResult.isCorrect : false);
+                    const badgeId = playerCurrentAnswer?.mascot_badge || (isCorrect ? ((currentIdx % 10) + 1) : null);
+                    const mascotInfo = badgeId ? MASCOT_DETAILS[badgeId] : null;
+
+                    if (isCorrect && mascotInfo) {
+                        return (
+                            <div className="glass-card" style={{ padding: '40px 28px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.8rem', fontFamily: 'var(--font-display)', letterSpacing: '0.15em', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 8 }}>
+                                    ⚡ PROTOCOL X // BADGE AWARD
+                                </div>
+                                <h1 style={{ fontSize: '1.8rem', marginBottom: 12, color: '#FFFFFF', textShadow: '0 0 20px var(--accent-glow)' }}>
+                                    🏆 MASCOT BADGE UNLOCKED!
+                                </h1>
+
+                                {/* Glowing Mascot Badge Frame */}
+                                <div style={{ margin: '24px auto', width: 140, height: 140, position: 'relative' }}>
+                                    <div style={{ position: 'absolute', inset: -8, borderRadius: '50%', background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)', animation: 'pulse 2s infinite' }}></div>
+                                    <img 
+                                        src={mascotInfo.image} 
+                                        alt={mascotInfo.name} 
+                                        style={{ 
+                                            width: '100%', height: '100%', 
+                                            borderRadius: '50%', objectFit: 'cover', 
+                                            border: '3px solid var(--accent)',
+                                            boxShadow: '0 0 30px var(--accent-glow)',
+                                            position: 'relative',
+                                            zIndex: 2
+                                        }} 
+                                    />
+                                </div>
+
+                                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 800, color: 'var(--metal-light)', marginBottom: 4 }}>
+                                    {mascotInfo.name} #{mascotInfo.id.toString().padStart(2, '0')}
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 16 }}>
+                                    {mascotInfo.title}
+                                </div>
+
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: 420, margin: '0 auto 24px auto', lineHeight: 1.5 }}>
+                                    Outstanding accuracy! You correctly solved Question {currentIdx + 1} and unlocked this collectible cybernetic mascot badge for your trophy showcase.
+                                </p>
+
+                                <div className="answer-reveal correct" style={{ margin: 0 }}>
+                                    ✅ Badge Saved to Leaderboard Portfolio (+10 PTS)
+                                </div>
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <div className="glass-card" style={{ padding: '40px 28px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.8rem', fontFamily: 'var(--font-display)', letterSpacing: '0.15em', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>
+                                    PROTOCOL X // BADGE STATUS
+                                </div>
+                                <h1 style={{ fontSize: '1.6rem', marginBottom: 12, color: 'var(--text-primary)' }}>
+                                    ❌ NO BADGE EARNED THIS ROUND
+                                </h1>
+                                <div style={{ fontSize: '3rem', margin: '16px 0' }}>🔒</div>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: 420, margin: '0 auto 24px auto', lineHeight: 1.5 }}>
+                                    Sorry, no mascot badge was awarded for Question {currentIdx + 1} because your submitted answer was incorrect. Stay sharp and aim for precision on the next question!
+                                </p>
+                                <div className="answer-reveal wrong" style={{ margin: 0 }}>
+                                    Correct Answer was: <strong>&quot;{q.type === 'emoji' ? q.answer : q.options?.[q.answer as number]}&quot;</strong>
+                                </div>
+                            </div>
+                        );
+                    }
+                })()
+            ) : sessionState.showAnswers ? (
+                /* DEDICATED CLEAN PERCENTAGE ANALYTICS REVEAL SCREEN (NO MASCOTS INSIDE BAR) */
+                (() => {
+                    const totalResp = sessionState.totalResponses || 0;
+
+                    return (
+                        <div className="glass-card" style={{ padding: '32px 24px' }}>
+                            {/* Quiz Progress */}
+                            <div className="progress-container" style={{ marginBottom: 16 }}>
+                                <div className="progress-bar" style={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}></div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <span className="badge">{q.section}</span>
+                                <span className="badge" style={{ background: 'var(--surface-raised)', borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 800 }}>
+                                    REVEAL STATE
+                                </span>
+                            </div>
+
+                            <h1 style={{ fontSize: '1.6rem', marginBottom: 6 }}>
+                                QUESTION 0{currentIdx + 1} // REVEAL ANALYTICS
+                            </h1>
+                            <div className="question-text" style={{ fontSize: '1.2rem', margin: '12px 0 20px 0', color: '#F5F5F7' }}>
+                                {q.question}
+                            </div>
+
+                            {/* Puzzle image if available */}
+                            {q.type === 'emoji' && q.images && q.images[0] && (
+                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+                                    <img 
+                                        src={q.images[0]} 
+                                        alt="Puzzle" 
+                                        style={{ maxHeight: 140, maxWidth: '100%', borderRadius: 12, border: '1px solid var(--border)' }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Options Analytics Breakdown with Smooth Multi-Color Bars */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
+                                {q.options?.map((optText, optIdx) => {
+                                    const isCorrect = optIdx === q.answer;
+                                    const count = sessionState.optionDistribution?.[optIdx.toString()] || 0;
+                                    const percent = totalResp > 0 ? Math.round((count / totalResp) * 100) : 0;
+                                    
+                                    const gradient = OPTION_GRADIENTS[optIdx % OPTION_GRADIENTS.length];
+                                    const borderColor = isCorrect ? 'var(--accent)' : OPTION_BORDER_COLORS[optIdx % OPTION_BORDER_COLORS.length];
+                                    const glowColor = isCorrect ? 'rgba(232, 38, 44, 0.5)' : OPTION_GLOW_COLORS[optIdx % OPTION_GLOW_COLORS.length];
+
+                                    return (
+                                        <div 
+                                            key={optIdx} 
+                                            className={`analytics-option-card ${isCorrect ? 'correct-winner' : ''}`}
+                                            style={{
+                                                '--card-border-color': borderColor,
+                                                '--card-glow-color': glowColor,
+                                                animationDelay: `${optIdx * 0.12}s`
+                                            } as React.CSSProperties}
+                                        >
+                                            {/* Option Header */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <span style={{ 
+                                                        fontFamily: 'var(--font-display)', 
+                                                        fontWeight: 800, 
+                                                        fontSize: '0.85rem', 
+                                                        color: '#fff',
+                                                        background: isCorrect ? 'var(--accent)' : 'var(--surface-raised)',
+                                                        padding: '4px 10px',
+                                                        borderRadius: 6,
+                                                        border: '1px solid var(--border-rim)'
+                                                    }}>
+                                                        OPTION {String.fromCharCode(65 + optIdx)}
+                                                    </span>
+                                                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: isCorrect ? '#FFFFFF' : 'var(--text-primary)' }}>
+                                                        {optText}
+                                                    </span>
+                                                    {isCorrect && (
+                                                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 800, background: 'var(--accent)', color: '#fff', padding: '2px 8px', borderRadius: 4 }}>
+                                                            ✓ CORRECT
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.95rem', color: isCorrect ? 'var(--accent)' : 'var(--metal-light)' }}>
+                                                    {percent}% ({count} {count === 1 ? 'user' : 'users'})
+                                                </div>
+                                            </div>
+
+                                            {/* Smooth Fluid Multi-Color Fill Bar */}
+                                            <div className="analytics-bar-container" style={{ margin: 0, height: 28, borderRadius: 8 }}>
+                                                <div 
+                                                    className="analytics-bar-fill" 
+                                                    style={{ 
+                                                        '--target-width': `${percent}%`,
+                                                        width: `${percent}%`, 
+                                                        background: gradient,
+                                                        animationDelay: `${optIdx * 0.12 + 0.15}s`,
+                                                        borderRadius: 6
+                                                    } as React.CSSProperties}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Personal Player Result Feedback */}
+                            {submitResult ? (
+                                <div className={`answer-reveal ${submitResult.isCorrect ? 'correct' : 'wrong'}`} style={{ margin: 0, textAlign: 'center' }}>
+                                    {submitResult.isCorrect ? (
+                                        <div>🎉 Correct! +{submitResult.pointsEarned} Points earned.</div>
+                                    ) : (
+                                        <div>
+                                            ❌ Wrong! Correct answer: <strong>&quot;{submitResult.correctOption}&quot;</strong>.
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="answer-reveal wrong" style={{ margin: 0, textAlign: 'center' }}>
+                                    ⏰ Time expired! Correct answer was: <strong>&quot;{
+                                        q.type === 'emoji' ? q.answer : q.options?.[q.answer as number]
+                                    }&quot;</strong>.
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()
             ) : (
                 <div className="glass-card">
                     {/* Quiz Progress */}
@@ -795,24 +1065,22 @@ export default function PlayerPage() {
                             <div className="options-list">
                                 {q.options?.map((opt, optIdx) => {
                                     const isOptSelected = userAnswer === optIdx.toString();
-                                    const isCorrectOpt = sessionState.showAnswers && optIdx === q.answer;
-                                    const isWrongSelected = sessionState.showAnswers && isOptSelected && optIdx !== q.answer;
 
                                     let cardClass = 'option-card';
                                     if (isOptSelected) cardClass += ' selected';
-                                    if (isCorrectOpt) cardClass += ' correct';
-                                    if (isWrongSelected) cardClass += ' wrong';
                                     if (isLocked || hasSubmitted) cardClass += ' disabled';
 
                                     return (
-                                        <button
-                                            key={optIdx}
-                                            onClick={() => handleAnswerSelect(optIdx.toString())}
-                                            disabled={isLocked || hasSubmitted}
-                                            className={cardClass}
-                                        >
-                                            {opt}
-                                        </button>
+                                        <div key={optIdx} style={{ width: '100%' }}>
+                                            <button
+                                                onClick={() => handleAnswerSelect(optIdx.toString())}
+                                                disabled={isLocked || hasSubmitted}
+                                                className={cardClass}
+                                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                            >
+                                                <span>{opt}</span>
+                                            </button>
+                                        </div>
                                     );
                                 })}
                             </div>
@@ -823,13 +1091,9 @@ export default function PlayerPage() {
                             <div className="image-options-grid">
                                 {q.options?.map((opt, optIdx) => {
                                     const isOptSelected = userAnswer === optIdx.toString();
-                                    const isCorrectOpt = sessionState.showAnswers && optIdx === q.answer;
-                                    const isWrongSelected = sessionState.showAnswers && isOptSelected && optIdx !== q.answer;
 
                                     let cardClass = 'image-option-card';
                                     if (isOptSelected) cardClass += ' selected';
-                                    if (isCorrectOpt) cardClass += ' correct';
-                                    if (isWrongSelected) cardClass += ' wrong';
                                     if (isLocked || hasSubmitted) cardClass += ' disabled';
 
                                     return (
@@ -894,32 +1158,6 @@ export default function PlayerPage() {
                     {isLocked && !hasSubmitted && !sessionState.showAnswers && (
                         <div className="answer-reveal wrong">
                             ⏰ Time is up! You didn&apos;t submit an answer in time.
-                        </div>
-                    )}
-
-                    {/* COORDINATOR REVEALS ANSWERS */}
-                    {sessionState.showAnswers && submitResult && (
-                        <div className={`answer-reveal ${submitResult.isCorrect ? 'correct' : 'wrong'}`}>
-                            {submitResult.isCorrect ? (
-                                <div>🎉 Correct! +{submitResult.pointsEarned} Points.</div>
-                            ) : (
-                                <div>
-                                    ❌ Wrong! Correct answer: <strong>&quot;{submitResult.correctOption}&quot;</strong>.
-                                    {q.type === 'emoji' && (
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                                            (+5 participation points awarded for answering on time!)
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {sessionState.showAnswers && !hasSubmitted && (
-                        <div className="answer-reveal wrong">
-                            ⏰ Time expired! Correct answer was: <strong>&quot;{
-                                q.type === 'emoji' ? q.answer : q.options?.[q.answer as number]
-                            }&quot;</strong>.
                         </div>
                     )}
                 </div>

@@ -42,19 +42,38 @@ export async function POST(request: Request) {
                     timer_duration = $2, 
                     is_locked = FALSE, 
                     show_answers = FALSE,
+                    badges_awarded = FALSE,
                     leaderboard_revealed = FALSE
                 WHERE id = 1
             `, [now, timerDuration]);
         } else if (action === 'lock') {
             await query(`UPDATE quiz_session_state SET is_locked = TRUE WHERE id = 1`);
         } else if (action === 'reveal') {
-            await query(`UPDATE quiz_session_state SET show_answers = TRUE WHERE id = 1`);
+            await query(`UPDATE quiz_session_state SET show_answers = TRUE, badges_awarded = FALSE WHERE id = 1`);
+        } else if (action === 'award-badges') {
+            // Toggle or set badges_awarded state
+            const targetState = body.badgesAwarded !== undefined ? !!body.badgesAwarded : null;
+            if (targetState !== null) {
+                await query('UPDATE quiz_session_state SET badges_awarded = $1 WHERE id = 1', [targetState]);
+            } else {
+                await query('UPDATE quiz_session_state SET badges_awarded = NOT badges_awarded WHERE id = 1');
+            }
+            
+            // Assign random badge to any unassigned correct answers on current question
+            const correctAnswers = await query(
+                'SELECT id FROM player_answers WHERE question_index = $1 AND is_correct = TRUE AND mascot_badge IS NULL', 
+                [currentIndex]
+            );
+            for (const row of correctAnswers.rows) {
+                const randomBadge = Math.floor(Math.random() * 10) + 1;
+                await query('UPDATE player_answers SET mascot_badge = $1 WHERE id = $2', [randomBadge, row.id]);
+            }
         } else if (action === 'next') {
             if (currentIndex < questions.length - 1) {
                 currentIndex += 1;
                 await query(`
                     UPDATE quiz_session_state 
-                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE, leaderboard_revealed = FALSE
+                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE, badges_awarded = FALSE, leaderboard_revealed = FALSE
                     WHERE id = 1
                 `, [currentIndex]);
             }
@@ -63,7 +82,7 @@ export async function POST(request: Request) {
                 currentIndex -= 1;
                 await query(`
                     UPDATE quiz_session_state 
-                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE, leaderboard_revealed = FALSE
+                    SET current_question_index = $1, timer_start_time = NULL, is_locked = FALSE, show_answers = FALSE, badges_awarded = FALSE, leaderboard_revealed = FALSE
                     WHERE id = 1
                 `, [currentIndex]);
             }
@@ -92,7 +111,7 @@ export async function POST(request: Request) {
         }
 
         // Fetch updated state
-        const [updatedRes, playersRes] = await Promise.all([
+        const [updatedRes, playersRes, statsRes, distRes] = await Promise.all([
             query(`
                 SELECT 
                     current_question_index, 
@@ -101,7 +120,8 @@ export async function POST(request: Request) {
                     show_answers, 
                     is_locked,
                     is_ended,
-                    leaderboard_revealed
+                    leaderboard_revealed,
+                    badges_awarded
                 FROM quiz_session_state 
                 WHERE id = 1
             `),
@@ -111,10 +131,29 @@ export async function POST(request: Request) {
                     (SELECT COUNT(*) FROM player_answers pa WHERE pa.player_usn = p.usn AND pa.question_index = $1) > 0 as answered
                 FROM players p
                 ORDER BY p.score DESC, p.correct_count DESC, p.id ASC
+            `, [currentIndex]),
+            query(`
+                SELECT 
+                    (SELECT COUNT(*) FROM players)::int as total_players,
+                    (SELECT COUNT(DISTINCT player_usn) FROM player_answers WHERE question_index = $1)::int as total_responses
+            `, [currentIndex]),
+            query(`
+                SELECT selected_answer, COUNT(*)::int as count
+                FROM player_answers
+                WHERE question_index = $1
+                AND selected_answer IS NOT NULL
+                GROUP BY selected_answer
             `, [currentIndex])
         ]);
 
         const updatedState = updatedRes.rows[0];
+        const stats = statsRes.rows[0] || { total_players: 0, total_responses: 0 };
+        const optionDistribution: Record<string, number> = {};
+        distRes.rows.forEach(r => {
+            if (r.selected_answer !== null) {
+                optionDistribution[r.selected_answer] = r.count;
+            }
+        });
 
         return NextResponse.json({
             success: true,
@@ -126,7 +165,11 @@ export async function POST(request: Request) {
                 isLocked: updatedState.is_locked,
                 isEnded: updatedState.is_ended,
                 serverTime: new Date().toISOString(),
-                leaderboardRevealed: updatedState.leaderboard_revealed
+                leaderboardRevealed: updatedState.leaderboard_revealed,
+                badgesAwarded: !!updatedState.badges_awarded,
+                totalPlayers: stats.total_players,
+                totalResponses: stats.total_responses,
+                optionDistribution
             },
             playersStatus: playersRes.rows.map(row => ({
                 name: row.name,

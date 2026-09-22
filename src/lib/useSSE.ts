@@ -4,7 +4,10 @@ import { useEffect, useRef } from 'react';
 
 export function useSSE(handlers: Record<string, () => void>) {
     const handlersRef = useRef(handlers);
-    handlersRef.current = handlers;
+
+    useEffect(() => {
+        handlersRef.current = handlers;
+    });
 
     useEffect(() => {
         let eventSource: EventSource | null = null;

@@ -9,9 +9,16 @@ export async function GET() {
     try {
         const data = await withDedup(CACHE_KEY, CACHE_TTL, async () => {
             const res = await query(`
-                SELECT name, usn, score, correct_count 
-                FROM players 
-                ORDER BY score DESC, correct_count DESC, id ASC
+                SELECT 
+                    p.name, p.usn, p.score, p.correct_count,
+                    COALESCE(
+                        (SELECT ARRAY_AGG(pa.mascot_badge) 
+                         FROM player_answers pa 
+                         WHERE pa.player_usn = p.usn AND pa.mascot_badge IS NOT NULL),
+                        ARRAY[]::INT[]
+                    ) as earned_badges
+                FROM players p 
+                ORDER BY p.score DESC, p.correct_count DESC, p.id ASC
             `);
 
             return {
@@ -21,7 +28,8 @@ export async function GET() {
                     name: row.name,
                     usn: row.usn,
                     score: row.score,
-                    correctCount: row.correct_count
+                    correctCount: row.correct_count,
+                    earnedBadges: row.earned_badges || []
                 }))
             };
         });

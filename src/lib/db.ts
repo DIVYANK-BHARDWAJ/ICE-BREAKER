@@ -96,6 +96,16 @@ export async function initDb() {
             ADD COLUMN IF NOT EXISTS leaderboard_revealed BOOLEAN DEFAULT FALSE;
         `);
 
+        await client.query(`
+            ALTER TABLE quiz_session_state 
+            ADD COLUMN IF NOT EXISTS badges_awarded BOOLEAN DEFAULT FALSE;
+        `);
+
+        await client.query(`
+            ALTER TABLE player_answers 
+            ADD COLUMN IF NOT EXISTS mascot_badge INT DEFAULT NULL;
+        `);
+
         const res = await client.query('SELECT COUNT(*) FROM quiz_session_state');
         if (parseInt(res.rows[0].count, 10) === 0) {
             await client.query(`
