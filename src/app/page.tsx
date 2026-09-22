@@ -127,12 +127,12 @@ export default function PlayerPage() {
         }
     }, []);
 
-    // 2. Poll session state every 1 second and leaderboard every 3 seconds
+    // 2. Poll session state every 1.5 seconds (SSE provides instant push updates)
     useEffect(() => {
         // Fetch session state immediately
         fetchSessionState();
 
-        const sessionInterval = setInterval(fetchSessionState, 500);
+        const sessionInterval = setInterval(fetchSessionState, 1500);
 
         return () => {
             clearInterval(sessionInterval);
