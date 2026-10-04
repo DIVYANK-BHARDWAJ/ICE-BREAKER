@@ -94,6 +94,7 @@ export async function POST(request: Request) {
         // Combines duplicate check, INSERT, and UPDATE into a single query
         let points = 0;
         let isCorrect = false;
+        let mascotBadge = null;
 
         if (selectedAnswer !== null && selectedAnswer !== undefined && selectedAnswer !== '') {
             if (q.type === 'mcq' || q.type === 'mcq-image') {
@@ -112,14 +113,18 @@ export async function POST(request: Request) {
             }
         }
 
+        if (isCorrect) {
+            mascotBadge = Math.floor(Math.random() * 16) + 1; // Random badge 1 to 16
+        }
+
         const result = await query(`
             WITH duplicate_check AS (
                 SELECT id FROM player_answers 
                 WHERE player_usn = $1 AND question_index = $2
             ),
             insert_answer AS (
-                INSERT INTO player_answers (player_usn, question_index, selected_answer, is_correct, points_earned)
-                SELECT $1, $2, $3, $4, $5
+                INSERT INTO player_answers (player_usn, question_index, selected_answer, is_correct, points_earned, mascot_badge)
+                SELECT $1, $2, $3, $4, $5, $7
                 WHERE NOT EXISTS (SELECT 1 FROM duplicate_check)
                 RETURNING id
             ),
@@ -142,7 +147,8 @@ export async function POST(request: Request) {
             selectedAnswer?.toString() || null,
             isCorrect,
             points,
-            isCorrect ? 1 : 0
+            isCorrect ? 1 : 0,
+            mascotBadge
         ]);
 
         const row = result.rows[0];

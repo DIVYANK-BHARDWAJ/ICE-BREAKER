@@ -866,7 +866,7 @@ export default function PlayerPage() {
                                 </div>
 
                                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: 420, margin: '0 auto 24px auto', lineHeight: 1.5 }}>
-                                    Outstanding accuracy! You correctly solved Question {currentIdx + 1} and unlocked this collectible cybernetic mascot badge for your trophy showcase.
+                                    {mascotInfo.summary || "Outstanding accuracy! You correctly solved the question and unlocked this collectible cybernetic mascot badge for your trophy showcase."}
                                 </p>
 
                                 <div className="answer-reveal correct" style={{ margin: 0 }}>
@@ -887,8 +887,8 @@ export default function PlayerPage() {
                                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: 420, margin: '0 auto 24px auto', lineHeight: 1.5 }}>
                                     Sorry, no mascot badge was awarded for Question {currentIdx + 1} because your submitted answer was incorrect. Stay sharp and aim for precision on the next question!
                                 </p>
-                                <div className="answer-reveal wrong" style={{ margin: 0 }}>
-                                    Correct Answer was: <strong>&quot;{q.type === 'emoji' ? q.answer : q.options?.[q.answer as number]}&quot;</strong>
+                                <div className="answer-reveal wrong" style={{ margin: '16px 0 0 0', padding: '16px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontSize: '1.1rem' }}>
+                                    Correct Answer was: <strong style={{ color: '#f87171' }}>&quot;{q.type === 'emoji' ? q.answer : q.options?.[q.answer as number]}&quot;</strong>
                                 </div>
                             </div>
                         );
