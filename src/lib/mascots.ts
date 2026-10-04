@@ -66,10 +66,10 @@ export const OPTION_GRADIENTS = [
 export const OPTION_BORDER_COLORS = ['#00f2fe', '#e8262c', '#fcbf49', '#9d4edd'];
 
 export const OPTION_GLOW_COLORS = [
-    'rgba(0, 242, 254, 0.4)',  // Option A: Neon Cyan
-    'rgba(232, 38, 44, 0.5)',   // Option B: Crimson Accent
-    'rgba(252, 191, 73, 0.45)', // Option C: Amber Gold
-    'rgba(157, 78, 221, 0.45)', // Option D: Electric Purple
+    'rgba(0, 242, 254, 0.18)',  // Option A: Restrained Cyan
+    'rgba(232, 38, 44, 0.18)',   // Option B: Restrained Red
+    'rgba(252, 191, 73, 0.18)', // Option C: Restrained Amber
+    'rgba(157, 78, 221, 0.18)', // Option D: Restrained Purple
 ];
 
 export interface MascotDetail {

@@ -289,7 +289,7 @@ export default function HiddenAdminPage() {
                 <div className="glass-card">
                     <h1>ADMIN CONSOLE</h1>
                     <div className="subtitle" style={{ marginBottom: 24, letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                        Protocol X // Coordinator Access
+                        ProtocolX Coordinator Access
                     </div>
 
                     <form onSubmit={handleLogin}>
@@ -349,8 +349,13 @@ export default function HiddenAdminPage() {
 
                 {sessionState.isEnded || isCompleted ? (
                     <div className="glass-card" style={{ padding: 48, borderRadius: 20 }}>
-                        <h1 style={{ fontSize: '2.5rem', marginBottom: 8 }}>
-                            PROTOCOL X // CHAMPIONSHIPS
+                        <h1 style={{ textAlign: 'center', marginBottom: 16 }}>
+                            <span style={{ display: 'block', fontSize: '1.6rem', lineHeight: 1.2, letterSpacing: '0.05em' }}>
+                                PROTOCOLX
+                            </span>
+                            <span style={{ display: 'block', fontSize: '2.2rem', lineHeight: 1.2, marginTop: '4px', letterSpacing: '0.05em' }}>
+                                CHAMPIONSHIPS
+                            </span>
                         </h1>
                         <p className="subtitle" style={{ fontSize: '1.1rem', marginBottom: 16 }}>
                             The challenge has concluded. Official final standings:
@@ -1037,8 +1042,8 @@ export default function HiddenAdminPage() {
                                                     border: '1px solid var(--glass-border)', 
                                                     borderRadius: 8, 
                                                     marginBottom: 8,
-                                                    background: isCorrect ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
-                                                    borderColor: isCorrect ? 'var(--primary)' : 'var(--glass-border)',
+                                                    background: isCorrect ? 'rgba(34, 197, 94, 0.12)' : 'transparent',
+                                                    borderColor: isCorrect ? '#22C55E' : 'var(--border)',
                                                     fontWeight: isCorrect ? 700 : 500
                                                 }}
                                             >

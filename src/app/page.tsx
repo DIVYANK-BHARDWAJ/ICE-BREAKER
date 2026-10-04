@@ -567,7 +567,7 @@ export default function PlayerPage() {
                 <div className="glass-card">
                     <h1>ICE BREAKING</h1>
                     <div className="subtitle" style={{ letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: '0.85rem' }}>
-                        Protocol X // Participant Registration
+                        ProtocolX Participant Registration
                     </div>
 
                     <form onSubmit={handleRegistration}>
@@ -597,7 +597,7 @@ export default function PlayerPage() {
 
                         {regError && <div className="answer-reveal wrong" style={{ marginTop: 0, marginBottom: 20 }}>❌ {regError}</div>}
 
-                        <button type="submit" className="btn">ENTER PROTOCOL X</button>
+                        <button type="submit" className="btn">ENTER PROTOCOLX</button>
                     </form>
                 </div>
             </div>
@@ -627,8 +627,13 @@ export default function PlayerPage() {
                         </span>
                     </div>
 
-                    <h1 style={{ fontSize: '1.8rem', marginBottom: 4 }}>
-                        PROTOCOL X // STANDINGS
+                    <h1 style={{ textAlign: 'center', marginBottom: 16 }}>
+                        <span style={{ display: 'block', fontSize: '1.4rem', lineHeight: 1.2, letterSpacing: '0.05em' }}>
+                            PROTOCOLX
+                        </span>
+                        <span style={{ display: 'block', fontSize: '1.9rem', lineHeight: 1.2, marginTop: '4px', letterSpacing: '0.05em' }}>
+                            STANDINGS
+                        </span>
                     </h1>
                     <p className="subtitle" style={{ fontSize: '0.9rem', marginBottom: 20 }}>
                         {isCompleted 
@@ -637,7 +642,7 @@ export default function PlayerPage() {
                     </p>
 
                     {/* Participant's Personal Standing Banner */}
-                    <div style={{ background: 'var(--surface-raised)', border: '1px solid var(--accent)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, boxShadow: '0 0 16px var(--accent-glow)' }}>
+                    <div style={{ background: 'var(--surface-raised)', border: '1px solid var(--accent)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 0 8px rgba(232, 38, 44, 0.2)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <span style={{ fontSize: '1.5rem' }}>
                                 {myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎯'}
@@ -759,7 +764,7 @@ export default function PlayerPage() {
         return (
             <div className="glass-container">
                 <div className="glass-card">
-                    <h1>PROTOCOL X COMPLETED</h1>
+                    <h1>PROTOCOLX COMPLETED</h1>
                     <div className="emoji-feedback">⚡</div>
                     
                     <div className="result-score-circle">
@@ -830,7 +835,7 @@ export default function PlayerPage() {
                         return (
                             <div className="glass-card" style={{ padding: '40px 28px', textAlign: 'center' }}>
                                 <div style={{ fontSize: '0.8rem', fontFamily: 'var(--font-display)', letterSpacing: '0.15em', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 8 }}>
-                                    ⚡ PROTOCOL X // BADGE AWARD
+                                    ⚡ PROTOCOLX BADGE AWARD
                                 </div>
                                 <h1 style={{ fontSize: '1.8rem', marginBottom: 12, color: '#FFFFFF', textShadow: '0 0 20px var(--accent-glow)' }}>
                                     🏆 MASCOT BADGE UNLOCKED!
@@ -873,7 +878,7 @@ export default function PlayerPage() {
                         return (
                             <div className="glass-card" style={{ padding: '40px 28px', textAlign: 'center' }}>
                                 <div style={{ fontSize: '0.8rem', fontFamily: 'var(--font-display)', letterSpacing: '0.15em', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>
-                                    PROTOCOL X // BADGE STATUS
+                                    PROTOCOLX BADGE STATUS
                                 </div>
                                 <h1 style={{ fontSize: '1.6rem', marginBottom: 12, color: 'var(--text-primary)' }}>
                                     ❌ NO BADGE EARNED THIS ROUND
@@ -908,8 +913,15 @@ export default function PlayerPage() {
                                 </span>
                             </div>
 
-                            <h1 style={{ fontSize: '1.6rem', marginBottom: 6 }}>
-                                QUESTION 0{currentIdx + 1} // REVEAL ANALYTICS
+                            <h1 style={{ 
+                                fontSize: 'clamp(1.1rem, 3.2vw, 1.5rem)', 
+                                marginBottom: 6,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                letterSpacing: '0.04em'
+                            }}>
+                                QUESTION {String(currentIdx + 1).padStart(2, '0')} REVEAL ANALYTICS
                             </h1>
                             <div className="question-text" style={{ fontSize: '1.2rem', margin: '12px 0 20px 0', color: '#F5F5F7' }}>
                                 {q.question}
@@ -930,17 +942,30 @@ export default function PlayerPage() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
                                 {q.options?.map((optText, optIdx) => {
                                     const isCorrect = optIdx === q.answer;
+                                    const isUserWrongSelection = userAnswer === optIdx.toString() && !isCorrect;
                                     const count = sessionState.optionDistribution?.[optIdx.toString()] || 0;
                                     const percent = totalResp > 0 ? Math.round((count / totalResp) * 100) : 0;
                                     
-                                    const gradient = OPTION_GRADIENTS[optIdx % OPTION_GRADIENTS.length];
-                                    const borderColor = isCorrect ? 'var(--accent)' : OPTION_BORDER_COLORS[optIdx % OPTION_BORDER_COLORS.length];
-                                    const glowColor = isCorrect ? 'rgba(232, 38, 44, 0.5)' : OPTION_GLOW_COLORS[optIdx % OPTION_GLOW_COLORS.length];
+                                    const gradient = isCorrect
+                                        ? 'linear-gradient(90deg, #15803D 0%, #22C55E 100%)'
+                                        : isUserWrongSelection
+                                        ? 'linear-gradient(90deg, #5A0A0E 0%, #E8262C 100%)'
+                                        : OPTION_GRADIENTS[optIdx % OPTION_GRADIENTS.length];
+                                    const borderColor = isCorrect
+                                        ? '#22C55E'
+                                        : isUserWrongSelection
+                                        ? 'var(--accent)'
+                                        : OPTION_BORDER_COLORS[optIdx % OPTION_BORDER_COLORS.length];
+                                    const glowColor = isCorrect
+                                        ? 'rgba(34, 197, 94, 0.25)'
+                                        : isUserWrongSelection
+                                        ? 'rgba(232, 38, 44, 0.25)'
+                                        : OPTION_GLOW_COLORS[optIdx % OPTION_GLOW_COLORS.length];
 
                                     return (
                                         <div 
                                             key={optIdx} 
-                                            className={`analytics-option-card ${isCorrect ? 'correct-winner' : ''}`}
+                                            className={`analytics-option-card ${isCorrect ? 'correct-winner' : isUserWrongSelection ? 'wrong-user-choice' : ''}`}
                                             style={{
                                                 '--card-border-color': borderColor,
                                                 '--card-glow-color': glowColor,
@@ -955,23 +980,28 @@ export default function PlayerPage() {
                                                         fontWeight: 800, 
                                                         fontSize: '0.85rem', 
                                                         color: '#fff',
-                                                        background: isCorrect ? 'var(--accent)' : 'var(--surface-raised)',
+                                                        background: isCorrect ? '#16A34A' : isUserWrongSelection ? 'var(--accent)' : 'var(--surface-raised)',
                                                         padding: '4px 10px',
                                                         borderRadius: 6,
-                                                        border: '1px solid var(--border-rim)'
+                                                        border: isCorrect ? '1px solid #22C55E' : isUserWrongSelection ? '1px solid var(--accent)' : '1px solid var(--border-rim)'
                                                     }}>
                                                         OPTION {String.fromCharCode(65 + optIdx)}
                                                     </span>
-                                                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: isCorrect ? '#FFFFFF' : 'var(--text-primary)' }}>
+                                                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: isCorrect ? '#FFFFFF' : isUserWrongSelection ? '#FF5A5F' : 'var(--text-primary)' }}>
                                                         {optText}
                                                     </span>
                                                     {isCorrect && (
-                                                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 800, background: 'var(--accent)', color: '#fff', padding: '2px 8px', borderRadius: 4 }}>
+                                                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 800, background: '#16A34A', color: '#fff', border: '1px solid #22C55E', padding: '2px 8px', borderRadius: 4 }}>
                                                             ✓ CORRECT
                                                         </span>
                                                     )}
+                                                    {isUserWrongSelection && (
+                                                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 800, background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)', padding: '2px 8px', borderRadius: 4 }}>
+                                                            ❌ YOUR CHOICE
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.95rem', color: isCorrect ? 'var(--accent)' : 'var(--metal-light)' }}>
+                                                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.95rem', color: isCorrect ? '#4ADE80' : isUserWrongSelection ? '#FF5A5F' : 'var(--metal-light)' }}>
                                                     {percent}% ({count} {count === 1 ? 'user' : 'users'})
                                                 </div>
                                             </div>

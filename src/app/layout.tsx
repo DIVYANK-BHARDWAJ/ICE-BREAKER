@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-    title: 'ICE BREAKING // Protocol X Challenge',
+    title: 'ICE BREAKING - ProtocolX Challenge',
     description: 'An interactive live challenge platform. Connect, compete in logo challenges, and solve real-time puzzles.',
     icons: {
         icon: '/favicon.ico',

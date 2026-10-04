@@ -196,8 +196,13 @@ export default function PublicLeaderboardPage() {
             {/* 1. END OF QUIZ CELEBRATORY SCREEN */}
             {isCompleted ? (
                 <div className="glass-card" style={{ padding: 48, borderRadius: 20 }}>
-                    <h1 style={{ fontSize: '2.5rem', marginBottom: 8 }}>
-                        PROTOCOL X // CHAMPIONSHIPS
+                    <h1 style={{ textAlign: 'center', marginBottom: 16 }}>
+                        <span style={{ display: 'block', fontSize: '1.6rem', lineHeight: 1.2, letterSpacing: '0.05em' }}>
+                            PROTOCOLX
+                        </span>
+                        <span style={{ display: 'block', fontSize: '2.2rem', lineHeight: 1.2, marginTop: '4px', letterSpacing: '0.05em' }}>
+                            CHAMPIONSHIPS
+                        </span>
                     </h1>
                     <p className="subtitle" style={{ fontSize: '1.1rem', marginBottom: 16 }}>
                         The challenge has concluded. Official final standings:
@@ -322,9 +327,11 @@ export default function PublicLeaderboardPage() {
                                             const count = sessionState.optionDistribution?.[optIdx.toString()] || 0;
                                             const percent = totalResp > 0 ? Math.round((count / totalResp) * 100) : 0;
                                             
-                                            const gradient = OPTION_GRADIENTS[optIdx % OPTION_GRADIENTS.length];
-                                            const borderColor = isCorrect ? 'var(--accent)' : OPTION_BORDER_COLORS[optIdx % OPTION_BORDER_COLORS.length];
-                                            const glowColor = isCorrect ? 'rgba(232, 38, 44, 0.5)' : OPTION_GLOW_COLORS[optIdx % OPTION_GLOW_COLORS.length];
+                                            const gradient = isCorrect
+                                                ? 'linear-gradient(90deg, #15803D 0%, #22C55E 100%)'
+                                                : OPTION_GRADIENTS[optIdx % OPTION_GRADIENTS.length];
+                                            const borderColor = isCorrect ? '#22C55E' : OPTION_BORDER_COLORS[optIdx % OPTION_BORDER_COLORS.length];
+                                            const glowColor = isCorrect ? 'rgba(34, 197, 94, 0.25)' : OPTION_GLOW_COLORS[optIdx % OPTION_GLOW_COLORS.length];
 
                                             return (
                                                 <div 
@@ -344,9 +351,10 @@ export default function PublicLeaderboardPage() {
                                                                 fontWeight: 800, 
                                                                 fontSize: '0.75rem', 
                                                                 color: '#fff',
-                                                                background: isCorrect ? 'var(--accent)' : 'var(--surface-raised)',
+                                                                background: isCorrect ? '#16A34A' : 'var(--surface-raised)',
                                                                 padding: '2px 7px',
-                                                                borderRadius: 4
+                                                                borderRadius: 4,
+                                                                border: isCorrect ? '1px solid #22C55E' : 'none'
                                                             }}>
                                                                 {String.fromCharCode(65 + optIdx)}
                                                             </span>
@@ -354,12 +362,12 @@ export default function PublicLeaderboardPage() {
                                                                 {optText}
                                                             </span>
                                                             {isCorrect && (
-                                                                <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-display)', fontWeight: 800, background: 'var(--accent)', color: '#fff', padding: '1px 6px', borderRadius: 3 }}>
+                                                                <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-display)', fontWeight: 800, background: '#16A34A', color: '#fff', border: '1px solid #22C55E', padding: '1px 6px', borderRadius: 3 }}>
                                                                     ✓ CORRECT
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.9rem', color: isCorrect ? 'var(--accent)' : 'var(--metal-light)' }}>
+                                                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.9rem', color: isCorrect ? '#4ADE80' : 'var(--metal-light)' }}>
                                                             {percent}% ({count})
                                                         </div>
                                                     </div>
