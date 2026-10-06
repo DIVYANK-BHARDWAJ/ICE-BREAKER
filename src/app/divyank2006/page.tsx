@@ -26,6 +26,7 @@ interface PlayerStatus {
 
 export default function HiddenAdminPage() {
     const [password, setPassword] = useState('');
+    const [roomCode, setRoomCode] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authError, setAuthError] = useState('');
     
@@ -48,9 +49,11 @@ export default function HiddenAdminPage() {
     // Save admin password in localStorage on successful authenticate
     useEffect(() => {
         const savedPass = localStorage.getItem('admin_pass');
-        if (savedPass) {
+        const savedRoom = sessionStorage.getItem('admin_room');
+        if (savedPass && savedRoom) {
             setPassword(savedPass);
-            verifyPasswordOnMount(savedPass);
+            setRoomCode(savedRoom);
+            verifyPasswordOnMount(savedPass, savedRoom);
         }
     }, []);
 
@@ -71,7 +74,7 @@ export default function HiddenAdminPage() {
                 timerIntervalRef.current = null;
             }
         };
-    }, [isAuthenticated, password, pollingActive]);
+    }, [isAuthenticated, password, roomCode, pollingActive]);
 
     // SSE listener for instant updates — bypasses polling interval lag
     useSSE({
@@ -122,12 +125,12 @@ export default function HiddenAdminPage() {
         };
     }, [sessionState?.timerStartTime, sessionState?.timerDuration]);
 
-    const verifyPasswordOnMount = async (pass: string) => {
+    const verifyPasswordOnMount = async (pass: string, room: string) => {
         try {
             const res = await fetch('/api/admin/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'status', password: pass })
+                body: JSON.stringify({ action: 'status', password: pass, roomCode: room })
             });
             const data = await res.json();
             if (data.success) {
@@ -146,12 +149,13 @@ export default function HiddenAdminPage() {
             const res = await fetch('/api/admin/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'status', password })
+                body: JSON.stringify({ action: 'status', password, roomCode })
             });
             const data = await res.json();
             if (data.success) {
                 setIsAuthenticated(true);
                 localStorage.setItem('admin_pass', password);
+                sessionStorage.setItem('admin_room', roomCode);
             } else {
                 setAuthError(data.error || 'Invalid password.');
             }
@@ -165,7 +169,7 @@ export default function HiddenAdminPage() {
             const res = await fetch('/api/admin/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'status', password })
+                body: JSON.stringify({ action: 'status', password, roomCode })
             });
             const data = await res.json();
             if (data.success) {
@@ -192,6 +196,7 @@ export default function HiddenAdminPage() {
                 body: JSON.stringify({ 
                     action, 
                     password,
+                    roomCode,
                     duration: durationOverride 
                 })
             });
@@ -233,7 +238,7 @@ export default function HiddenAdminPage() {
             const res = await fetch('/api/admin/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'remove-player', password, usn })
+                body: JSON.stringify({ action: 'remove-player', password, roomCode, usn })
             });
             const data = await res.json();
             if (data.success) {
@@ -261,7 +266,7 @@ export default function HiddenAdminPage() {
             const res = await fetch('/api/admin/reset', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({ password, roomCode })
             });
             const data = await res.json();
             if (data.success) {
@@ -278,8 +283,10 @@ export default function HiddenAdminPage() {
 
     const handleLogout = () => {
         localStorage.removeItem('admin_pass');
+        sessionStorage.removeItem('admin_room');
         setIsAuthenticated(false);
         setPassword('');
+        setRoomCode('');
     };
 
     // 1. PASSWORD GATE
@@ -293,6 +300,17 @@ export default function HiddenAdminPage() {
                     </div>
 
                     <form onSubmit={handleLogin}>
+                        <div className="form-group">
+                            <label className="form-label">Room Code</label>
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                placeholder="Enter room code"
+                                value={roomCode}
+                                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                                required
+                            />
+                        </div>
                         <div className="form-group">
                             <label className="form-label">Access Password</label>
                             <input 
@@ -346,6 +364,9 @@ export default function HiddenAdminPage() {
                 >
                     ← Back to Dashboard
                 </button>
+                <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 100, background: 'rgba(0,0,0,0.6)', color: '#aaa', padding: '10px 20px', borderRadius: 10, fontSize: '0.85rem', fontWeight: 600, backdropFilter: 'blur(8px)' }}>
+                    ROOM: {roomCode}
+                </div>
 
                 {sessionState.isEnded || isCompleted ? (
                     <div className="glass-card" style={{ padding: 48, borderRadius: 20 }}>
@@ -550,7 +571,7 @@ export default function HiddenAdminPage() {
                     <div>
                         <h1 style={{ textAlign: 'left', marginBottom: 4 }}>Session Completed</h1>
                         <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                            The active quiz has concluded. Champions are celebrated below.
+                            Room {roomCode} has concluded. Champions are celebrated below.
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -711,7 +732,7 @@ export default function HiddenAdminPage() {
         <div className="admin-container">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                    <h1 style={{ textAlign: 'left', marginBottom: 4 }}>Live Admin Dashboard</h1>
+                    <h1 style={{ textAlign: 'left', marginBottom: 4 }}>Live Admin Dashboard (Room: {roomCode})</h1>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
                         <span className={`status-indicator ${pollingActive ? 'active' : 'inactive'}`}></span>
                         {pollingActive ? 'Real-time synchronization active' : 'Sync paused'}

@@ -11,6 +11,7 @@ interface Player {
     score: number;
     correctCount: number;
     completed: boolean;
+    roomCode: string;
 }
 
 interface SessionState {
@@ -33,6 +34,7 @@ export default function PlayerPage() {
     const [player, setPlayer] = useState<Player | null>(null);
     const [nameInput, setNameInput] = useState('');
     const [usnInput, setUsnInput] = useState('');
+    const [roomCodeInput, setRoomCodeInput] = useState('');
     const [regError, setRegError] = useState('');
 
     const [playerCurrentAnswer, setPlayerCurrentAnswer] = useState<{ selected_answer: string; is_correct: boolean; points_earned: number; mascot_badge: number | null } | null>(null);
@@ -115,14 +117,14 @@ export default function PlayerPage() {
         };
     }, [emojiTextGuess, currentIdx, submittedAnswerIndex, isSubmitting, player, sessionState, userAnswer, q]);
 
-    // 1. Load player from localStorage on mount
+    // 1. Load player from sessionStorage on mount
     useEffect(() => {
-        const storedPlayer = localStorage.getItem('quiz_player');
+        const storedPlayer = sessionStorage.getItem('quiz_player');
         if (storedPlayer) {
             try {
                 setPlayer(JSON.parse(storedPlayer));
             } catch (e) {
-                localStorage.removeItem('quiz_player');
+                sessionStorage.removeItem('quiz_player');
             }
         }
     }, []);
@@ -157,14 +159,14 @@ export default function PlayerPage() {
         setUserAnswer(answerVal);
         setSubmittedAnswerIndex(latest.currentIdx);
 
-        // Record submission locally in localStorage
-        const storedAnswersStr = localStorage.getItem('submitted_answers');
+        // Record submission locally in sessionStorage
+        const storedAnswersStr = sessionStorage.getItem('submitted_answers');
         let storedAnswers: Record<number, string> = {};
         if (storedAnswersStr) {
             try { storedAnswers = JSON.parse(storedAnswersStr); } catch (e) {}
         }
         storedAnswers[latest.currentIdx] = answerVal;
-        localStorage.setItem('submitted_answers', JSON.stringify(storedAnswers));
+        sessionStorage.setItem('submitted_answers', JSON.stringify(storedAnswers));
 
         setIsSubmitting(true);
 
@@ -180,6 +182,7 @@ export default function PlayerPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     usn: latest.player.usn,
+                    roomCode: latest.player.roomCode,
                     questionIndex: latest.currentIdx,
                     selectedAnswer: answerVal
                 })
@@ -259,12 +262,13 @@ export default function PlayerPage() {
 
     // Poll leaderboard when session ends OR admin reveals leaderboard.
     // We fetch even before leaderboard is revealed so the player can see their own real score
-    // on the waiting screen (player.score in localStorage is always stale 0).
+    // on the waiting screen (player.score in sessionStorage is always stale 0).
     useEffect(() => {
         if (!sessionState?.isEnded && !sessionState?.leaderboardRevealed) return;
         const fetchLb = async () => {
+            if (!player?.roomCode) return;
             try {
-                const res = await fetch('/api/leaderboard');
+                const res = await fetch(`/api/leaderboard?roomCode=${encodeURIComponent(player.roomCode)}`);
                 const data = await res.json();
                 if (data.success) setLeaderboard(data.leaderboard);
             } catch (e) {
@@ -281,7 +285,7 @@ export default function PlayerPage() {
         if (!sessionState) return;
 
         const activeIndex = sessionState.currentQuestionIndex;
-        const storedAnswersStr = localStorage.getItem('submitted_answers');
+        const storedAnswersStr = sessionStorage.getItem('submitted_answers');
         let storedAnswers: Record<number, string> = {};
         if (storedAnswersStr) {
             try {
@@ -309,8 +313,9 @@ export default function PlayerPage() {
     }, [sessionState?.currentQuestionIndex]);
 
     const fetchLeaderboardData = async () => {
+        if (!player?.roomCode) return;
         try {
-            const res = await fetch('/api/leaderboard');
+            const res = await fetch(`/api/leaderboard?roomCode=${encodeURIComponent(player.roomCode)}`);
             const data = await res.json();
             if (data.success) setLeaderboard(data.leaderboard);
         } catch (e) {
@@ -321,9 +326,9 @@ export default function PlayerPage() {
     const fetchSessionState = async () => {
         try {
             const currentPlayer = stateRef.current.player;
-            const url = currentPlayer?.usn 
-                ? `/api/session-state?usn=${encodeURIComponent(currentPlayer.usn)}` 
-                : '/api/session-state';
+            if (!currentPlayer || !currentPlayer.roomCode) return; // Wait until player registers with roomCode
+
+            const url = `/api/session-state?usn=${encodeURIComponent(currentPlayer.usn)}&roomCode=${encodeURIComponent(currentPlayer.roomCode)}`;
             const res = await fetch(url);
             const data = await res.json();
             if (data.success) {
@@ -362,7 +367,7 @@ export default function PlayerPage() {
                         if (!prev) return prev;
                         if (prev.score === data.playerScore && prev.correctCount === data.playerCorrectCount) return prev;
                         const updated = { ...prev, score: data.playerScore, correctCount: data.playerCorrectCount ?? prev.correctCount };
-                        localStorage.setItem('quiz_player', JSON.stringify(updated));
+                        sessionStorage.setItem('quiz_player', JSON.stringify(updated));
                         return updated;
                     });
                 }
@@ -381,12 +386,13 @@ export default function PlayerPage() {
         e.preventDefault();
         setRegError('');
 
-        if (!nameInput.trim() || !usnInput.trim()) {
+        if (!nameInput.trim() || !usnInput.trim() || !roomCodeInput.trim()) {
             setRegError('Please fill in all fields.');
             return;
         }
 
         const formattedUsn = usnInput.trim().toUpperCase();
+        const formattedRoomCode = roomCodeInput.trim().toUpperCase();
 
         // Alphanumeric USN validation
         const usnRegex = /^[A-Z0-9]{5,15}$/;
@@ -399,14 +405,14 @@ export default function PlayerPage() {
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: nameInput.trim(), usn: formattedUsn })
+                body: JSON.stringify({ name: nameInput.trim(), usn: formattedUsn, roomCode: formattedRoomCode })
             });
 
             const data = await res.json();
             if (data.success) {
-                localStorage.removeItem('submitted_answers'); // clear stale answers
+                sessionStorage.removeItem('submitted_answers'); // clear stale answers
                 setPlayer(data.player);
-                localStorage.setItem('quiz_player', JSON.stringify(data.player));
+                sessionStorage.setItem('quiz_player', JSON.stringify(data.player));
             } else {
                 setRegError(data.error || 'Registration failed.');
             }
@@ -425,14 +431,14 @@ export default function PlayerPage() {
         setUserAnswer(answerVal);
         setSubmittedAnswerIndex(sessionState.currentQuestionIndex);
 
-        // Record submission locally in localStorage to persist across page reloads
-        const storedAnswersStr = localStorage.getItem('submitted_answers');
+        // Record submission locally in sessionStorage to persist across page reloads
+        const storedAnswersStr = sessionStorage.getItem('submitted_answers');
         let storedAnswers: Record<number, string> = {};
         if (storedAnswersStr) {
             try { storedAnswers = JSON.parse(storedAnswersStr); } catch (e) {}
         }
         storedAnswers[sessionState.currentQuestionIndex] = answerVal;
-        localStorage.setItem('submitted_answers', JSON.stringify(storedAnswers));
+        sessionStorage.setItem('submitted_answers', JSON.stringify(storedAnswers));
 
         setIsSubmitting(true);
         try {
@@ -441,6 +447,7 @@ export default function PlayerPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     usn: player.usn,
+                    roomCode: player.roomCode,
                     questionIndex: sessionState.currentQuestionIndex,
                     selectedAnswer: answerVal
                 })
@@ -488,6 +495,7 @@ export default function PlayerPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     usn: player.usn,
+                    roomCode: player.roomCode,
                     questionIndex: sessionState.currentQuestionIndex,
                     selectedAnswer: userAnswer // Server will ignore write because they already answered, and return results
                 })
@@ -538,27 +546,16 @@ export default function PlayerPage() {
     };
 
     const logout = () => {
-        localStorage.removeItem('quiz_player');
-        localStorage.removeItem('submitted_answers');
+        sessionStorage.removeItem('quiz_player');
+        sessionStorage.removeItem('submitted_answers');
         setPlayer(null);
         setUserAnswer(null);
         setSubmittedAnswerIndex(null);
         setSubmitResult(null);
         setNameInput('');
         setUsnInput('');
+        setRoomCodeInput('');
     };
-
-    // Loading View
-    if (!sessionState) {
-        return (
-            <div className="glass-container">
-                <div className="glass-card" style={{ textAlign: 'center' }}>
-                    <div className="pulsing-loader"></div>
-                    <div className="waiting-message">Connecting to Quiz Server...</div>
-                </div>
-            </div>
-        );
-    }
 
     // 1. REGISTRATION SCREEN
     if (!player) {
@@ -595,10 +592,34 @@ export default function PlayerPage() {
                             />
                         </div>
 
+                        <div className="form-group">
+                            <label className="form-label">Room Code</label>
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                placeholder="e.g. ROOM-A"
+                                value={roomCodeInput}
+                                onChange={(e) => setRoomCodeInput(e.target.value)}
+                                required
+                            />
+                        </div>
+
                         {regError && <div className="answer-reveal wrong" style={{ marginTop: 0, marginBottom: 20 }}>❌ {regError}</div>}
 
                         <button type="submit" className="btn">ENTER PROTOCOLX</button>
                     </form>
+                </div>
+            </div>
+        );
+    }
+
+    // Loading View
+    if (!sessionState) {
+        return (
+            <div className="glass-container">
+                <div className="glass-card" style={{ textAlign: 'center' }}>
+                    <div className="pulsing-loader"></div>
+                    <div className="waiting-message">Connecting to Room {player.roomCode}...</div>
                 </div>
             </div>
         );

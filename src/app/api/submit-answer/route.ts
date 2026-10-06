@@ -7,10 +7,14 @@ import { broadcast } from '@/lib/events';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { usn, questionIndex, selectedAnswer } = body;
+        const { usn, questionIndex, selectedAnswer, roomCode } = body;
 
         if (!usn) {
             return NextResponse.json({ success: false, error: 'USN is required' }, { status: 400 });
+        }
+
+        if (!roomCode) {
+            return NextResponse.json({ success: false, error: 'Room Code is required' }, { status: 400 });
         }
 
         if (questionIndex === undefined || questionIndex < 0 || questionIndex >= questions.length) {
@@ -30,9 +34,9 @@ export async function POST(request: Request) {
                     is_ended,
                     NOW() as server_time
                 FROM quiz_session_state 
-                WHERE id = 1
-            `),
-            query('SELECT name FROM players WHERE usn = $1', [usn])
+                WHERE room_code = $1
+            `, [roomCode]),
+            query('SELECT name FROM players WHERE usn = $1 AND room_code = $2', [usn, roomCode])
         ]);
 
         if (sessionRes.rows.length === 0) {
@@ -120,11 +124,11 @@ export async function POST(request: Request) {
         const result = await query(`
             WITH duplicate_check AS (
                 SELECT id FROM player_answers 
-                WHERE player_usn = $1 AND question_index = $2
+                WHERE player_usn = $1 AND room_code = $8 AND question_index = $2
             ),
             insert_answer AS (
-                INSERT INTO player_answers (player_usn, question_index, selected_answer, is_correct, points_earned, mascot_badge)
-                SELECT $1, $2, $3, $4, $5, $7
+                INSERT INTO player_answers (player_usn, question_index, selected_answer, is_correct, points_earned, mascot_badge, room_code)
+                SELECT $1, $2, $3, $4, $5, $7, $8
                 WHERE NOT EXISTS (SELECT 1 FROM duplicate_check)
                 RETURNING id
             ),
@@ -133,7 +137,7 @@ export async function POST(request: Request) {
                 SET 
                     score = score + $5,
                     correct_count = correct_count + $6
-                WHERE usn = $1
+                WHERE usn = $1 AND room_code = $8
                 AND EXISTS (SELECT 1 FROM insert_answer)
                 RETURNING score, correct_count
             )
@@ -148,7 +152,8 @@ export async function POST(request: Request) {
             isCorrect,
             points,
             isCorrect ? 1 : 0,
-            mascotBadge
+            mascotBadge,
+            roomCode
         ]);
 
         const row = result.rows[0];
@@ -159,8 +164,8 @@ export async function POST(request: Request) {
             }, { status: 400 });
         }
 
-        invalidateCacheByPrefix('leaderboard');
-        invalidateCacheByPrefix('session-state');
+        invalidateCacheByPrefix(`leaderboard-${roomCode}`);
+        invalidateCacheByPrefix(`session-state-${roomCode}`);
         broadcast('leaderboard-update');
         broadcast('response-update');
 

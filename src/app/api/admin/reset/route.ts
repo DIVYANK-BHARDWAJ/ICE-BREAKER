@@ -7,16 +7,20 @@ const DEFAULT_ADMIN_PASSWORD = 'divyank';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { password } = body;
+        const { password, roomCode } = body;
+
+        if (!roomCode) {
+            return NextResponse.json({ success: false, error: 'Room Code is required' }, { status: 400 });
+        }
 
         const adminPassword = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
         if (password !== adminPassword) {
             return NextResponse.json({ success: false, error: 'Unauthorized: Invalid admin password' }, { status: 401 });
         }
 
-        // Wipe tables
-        await query('TRUNCATE TABLE player_answers CASCADE');
-        await query('TRUNCATE TABLE players CASCADE');
+        // Wipe tables for this room only
+        await query('DELETE FROM player_answers WHERE room_code = $1', [roomCode]);
+        await query('DELETE FROM players WHERE room_code = $1', [roomCode]);
         
         // Reset session state
         await query(`
@@ -30,15 +34,15 @@ export async function POST(request: Request) {
                 is_ended = FALSE,
                 badges_awarded = FALSE,
                 leaderboard_revealed = FALSE
-            WHERE id = 1
-        `);
+            WHERE room_code = $1
+        `, [roomCode]);
 
-        invalidateCacheByPrefix('session-state');
-        invalidateCacheByPrefix('leaderboard');
+        invalidateCacheByPrefix(`session-state-${roomCode}`);
+        invalidateCacheByPrefix(`leaderboard-${roomCode}`);
 
         return NextResponse.json({
             success: true,
-            message: 'Quiz session reset successfully. All players and answers wiped.'
+            message: `Quiz session ${roomCode} reset successfully. All players and answers wiped.`
         });
 
     } catch (error: any) {

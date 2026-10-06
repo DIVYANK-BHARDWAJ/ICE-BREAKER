@@ -5,21 +5,29 @@ import { withDedup, invalidateCacheByPrefix } from '@/lib/cache';
 const CACHE_KEY = 'leaderboard';
 const CACHE_TTL = 2000;
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const data = await withDedup(CACHE_KEY, CACHE_TTL, async () => {
+        const { searchParams } = new URL(request.url);
+        const roomCode = searchParams.get('roomCode');
+        if (!roomCode) {
+            return NextResponse.json({ success: false, error: 'Room Code is required' }, { status: 400 });
+        }
+        const cacheKey = `${CACHE_KEY}-${roomCode}`;
+
+        const data = await withDedup(cacheKey, CACHE_TTL, async () => {
             const res = await query(`
                 SELECT 
                     p.name, p.usn, p.score, p.correct_count,
                     COALESCE(
                         (SELECT ARRAY_AGG(pa.mascot_badge) 
                          FROM player_answers pa 
-                         WHERE pa.player_usn = p.usn AND pa.mascot_badge IS NOT NULL),
+                         WHERE pa.player_usn = p.usn AND pa.room_code = p.room_code AND pa.mascot_badge IS NOT NULL),
                         ARRAY[]::INT[]
                     ) as earned_badges
                 FROM players p 
+                WHERE p.room_code = $1
                 ORDER BY p.score DESC, p.correct_count DESC, p.id ASC
-            `);
+            `, [roomCode]);
 
             return {
                 success: true,
@@ -41,6 +49,10 @@ export async function GET() {
     }
 }
 
-export function invalidateLeaderboardCache() {
-    invalidateCacheByPrefix('leaderboard');
+export function invalidateLeaderboardCache(roomCode?: string) {
+    if (roomCode) {
+        invalidateCacheByPrefix(`${CACHE_KEY}-${roomCode}`);
+    } else {
+        invalidateCacheByPrefix(CACHE_KEY);
+    }
 }

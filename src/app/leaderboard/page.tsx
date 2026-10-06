@@ -27,6 +27,8 @@ interface LeaderboardEntry {
 }
 
 export default function PublicLeaderboardPage() {
+    const [roomCode, setRoomCode] = useState<string | null>(null);
+    const [roomCodeInput, setRoomCodeInput] = useState('');
     const [sessionState, setSessionState] = useState<SessionState | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [clientServerOffset, setClientServerOffset] = useState<number>(0);
@@ -36,6 +38,8 @@ export default function PublicLeaderboardPage() {
 
     // Poll session state every 500ms and leaderboard every 3 seconds
     useEffect(() => {
+        if (!roomCode) return;
+
         fetchSessionState();
         fetchLeaderboard();
 
@@ -47,12 +51,11 @@ export default function PublicLeaderboardPage() {
             clearInterval(leaderboardInterval);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, []);
+    }, [roomCode]);
 
-    // SSE listener for instant updates — bypasses polling interval lag
     useSSE({
-        'session-update': () => fetchSessionState(),
-        'leaderboard-update': () => fetchLeaderboard(),
+        'session-update': () => roomCode && fetchSessionState(),
+        'leaderboard-update': () => roomCode && fetchLeaderboard(),
     });
 
     const timerParamsRef = useRef({ startTime: 0, duration: 10 });
@@ -99,8 +102,9 @@ export default function PublicLeaderboardPage() {
     }, [sessionState?.timerStartTime, sessionState?.timerDuration]);
 
     const fetchSessionState = async () => {
+        if (!roomCode) return;
         try {
-            const res = await fetch('/api/session-state');
+            const res = await fetch(`/api/session-state?roomCode=${encodeURIComponent(roomCode)}`);
             const data = await res.json();
             if (data.success) {
                 const serverTimeMs = new Date(data.serverTime).getTime();
@@ -125,8 +129,9 @@ export default function PublicLeaderboardPage() {
     };
 
     const fetchLeaderboard = async () => {
+        if (!roomCode) return;
         try {
-            const res = await fetch('/api/leaderboard');
+            const res = await fetch(`/api/leaderboard?roomCode=${encodeURIComponent(roomCode)}`);
             const data = await res.json();
             if (data.success) {
                 setLeaderboard(data.leaderboard);
@@ -164,12 +169,34 @@ export default function PublicLeaderboardPage() {
         );
     };
 
+    if (!roomCode) {
+        return (
+            <div className="glass-container">
+                <div className="glass-card" style={{ textAlign: 'center' }}>
+                    <h2>Enter Room Code for Projector</h2>
+                    <form onSubmit={(e) => { e.preventDefault(); if(roomCodeInput.trim()) setRoomCode(roomCodeInput.trim().toUpperCase()); }}>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="e.g. ROOM-A"
+                            value={roomCodeInput}
+                            onChange={(e) => setRoomCodeInput(e.target.value)}
+                            required
+                            style={{ margin: '20px 0' }}
+                        />
+                        <button type="submit" className="btn">CONNECT PROJECTOR</button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     if (!sessionState) {
         return (
             <div className="glass-container">
                 <div className="glass-card" style={{ textAlign: 'center' }}>
                     <div className="pulsing-loader"></div>
-                    <div className="waiting-message">Syncing Leaderboard Screen...</div>
+                    <div className="waiting-message">Syncing Leaderboard Screen for {roomCode}...</div>
                 </div>
             </div>
         );
@@ -193,6 +220,9 @@ export default function PublicLeaderboardPage() {
 
     return (
         <div className="projector-container">
+            <div style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.5)', padding: '4px 12px', borderRadius: 8, color: '#aaa', fontSize: '0.8rem' }}>
+                ROOM: {roomCode}
+            </div>
             {/* 1. END OF QUIZ CELEBRATORY SCREEN */}
             {isCompleted ? (
                 <div className="glass-card" style={{ padding: 48, borderRadius: 20 }}>

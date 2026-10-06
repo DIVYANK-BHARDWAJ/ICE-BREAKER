@@ -7,7 +7,17 @@ const CACHE_TTL = 400;
 
 export async function GET(request: Request) {
     try {
-        const data = await withDedup(CACHE_KEY, CACHE_TTL, async () => {
+        const { searchParams } = new URL(request.url);
+        const usn = searchParams.get('usn');
+        const roomCode = searchParams.get('roomCode');
+
+        if (!roomCode) {
+            return NextResponse.json({ success: false, error: 'Room Code is required' }, { status: 400 });
+        }
+
+        const cacheKey = `${CACHE_KEY}-${roomCode}`;
+
+        const data = await withDedup(cacheKey, CACHE_TTL, async () => {
             const [res, statsRes, distRes] = await Promise.all([
                 query(`
                     SELECT 
@@ -20,20 +30,20 @@ export async function GET(request: Request) {
                         leaderboard_revealed,
                         badges_awarded
                     FROM quiz_session_state 
-                    WHERE id = 1
-                `),
+                    WHERE room_code = $1
+                `, [roomCode]),
                 query(`
                     SELECT 
-                        (SELECT COUNT(*) FROM players)::int as total_players,
-                        (SELECT COUNT(DISTINCT player_usn) FROM player_answers WHERE question_index = (SELECT current_question_index FROM quiz_session_state WHERE id = 1))::int as total_responses
-                `),
+                        (SELECT COUNT(*) FROM players WHERE room_code = $1)::int as total_players,
+                        (SELECT COUNT(DISTINCT player_usn) FROM player_answers WHERE room_code = $1 AND question_index = (SELECT current_question_index FROM quiz_session_state WHERE room_code = $1))::int as total_responses
+                `, [roomCode]),
                 query(`
                     SELECT selected_answer, COUNT(*)::int as count
                     FROM player_answers
-                    WHERE question_index = (SELECT current_question_index FROM quiz_session_state WHERE id = 1)
+                    WHERE room_code = $1 AND question_index = (SELECT current_question_index FROM quiz_session_state WHERE room_code = $1)
                     AND selected_answer IS NOT NULL
                     GROUP BY selected_answer
-                `)
+                `, [roomCode])
             ]);
 
             if (res.rows.length === 0) {
@@ -72,9 +82,6 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: false, error: 'Session state not found' }, { status: 404 });
         }
 
-        const { searchParams } = new URL(request.url);
-        const usn = searchParams.get('usn');
-
         let playerExists: boolean | undefined = undefined;
         let playerScore: number | undefined = undefined;
         let playerCorrectCount: number | undefined = undefined;
@@ -83,14 +90,14 @@ export async function GET(request: Request) {
 
         if (usn) {
             const [pRes, paRes, badgesRes] = await Promise.all([
-                query('SELECT score, correct_count FROM players WHERE usn = $1', [usn]),
+                query('SELECT score, correct_count FROM players WHERE usn = $1 AND room_code = $2', [usn, roomCode]),
                 query(
-                    'SELECT selected_answer, is_correct, points_earned, mascot_badge FROM player_answers WHERE player_usn = $1 AND question_index = $2', 
-                    [usn, data.currentQuestionIndex]
+                    'SELECT selected_answer, is_correct, points_earned, mascot_badge FROM player_answers WHERE player_usn = $1 AND room_code = $2 AND question_index = $3', 
+                    [usn, roomCode, data.currentQuestionIndex]
                 ),
                 query(
-                    'SELECT mascot_badge FROM player_answers WHERE player_usn = $1 AND mascot_badge IS NOT NULL ORDER BY question_index ASC',
-                    [usn]
+                    'SELECT mascot_badge FROM player_answers WHERE player_usn = $1 AND room_code = $2 AND mascot_badge IS NOT NULL ORDER BY question_index ASC',
+                    [usn, roomCode]
                 )
             ]);
 
@@ -120,6 +127,10 @@ export async function GET(request: Request) {
     }
 }
 
-export function invalidateSessionCache() {
-    invalidateCacheByPrefix('session-state');
+export function invalidateSessionCache(roomCode?: string) {
+    if (roomCode) {
+        invalidateCacheByPrefix(`${CACHE_KEY}-${roomCode}`);
+    } else {
+        invalidateCacheByPrefix(CACHE_KEY);
+    }
 }

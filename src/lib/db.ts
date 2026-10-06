@@ -38,10 +38,12 @@ export async function initDb() {
             CREATE TABLE IF NOT EXISTS players (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
-                usn VARCHAR(50) NOT NULL UNIQUE,
+                usn VARCHAR(50) NOT NULL,
+                room_code VARCHAR(50) NOT NULL,
                 score INT DEFAULT 0,
                 correct_count INT DEFAULT 0,
-                completed BOOLEAN DEFAULT FALSE
+                completed BOOLEAN DEFAULT FALSE,
+                UNIQUE(usn, room_code)
             );
         `);
 
@@ -49,70 +51,43 @@ export async function initDb() {
             CREATE TABLE IF NOT EXISTS player_answers (
                 id SERIAL PRIMARY KEY,
                 player_usn VARCHAR(50) NOT NULL,
+                room_code VARCHAR(50) NOT NULL,
                 question_index INT NOT NULL,
                 selected_answer TEXT,
                 is_correct BOOLEAN DEFAULT FALSE,
                 points_earned INT DEFAULT 0,
+                mascot_badge INT DEFAULT NULL,
                 submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
 
         await client.query(`
             CREATE TABLE IF NOT EXISTS quiz_session_state (
-                id INT PRIMARY KEY,
+                room_code VARCHAR(50) PRIMARY KEY,
                 current_question_index INT DEFAULT 0,
                 timer_start_time TIMESTAMP WITH TIME ZONE,
                 timer_duration INT DEFAULT 10,
                 show_answers BOOLEAN DEFAULT FALSE,
                 is_locked BOOLEAN DEFAULT FALSE,
-                is_ended BOOLEAN DEFAULT FALSE
+                is_ended BOOLEAN DEFAULT FALSE,
+                leaderboard_revealed BOOLEAN DEFAULT FALSE,
+                badges_awarded BOOLEAN DEFAULT FALSE
             );
         `);
 
         // Indexes for high-concurrency lookups
         await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_players_usn ON players (usn);
+            CREATE INDEX IF NOT EXISTS idx_players_usn_room ON players (usn, room_code);
         `);
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_player_answers_lookup 
-            ON player_answers (player_usn, question_index);
+            ON player_answers (player_usn, room_code, question_index);
         `);
         await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_player_answers_question 
-            ON player_answers (question_index);
-        `);
-        await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_players_score 
-            ON players (score DESC, correct_count DESC, id ASC);
+            CREATE INDEX IF NOT EXISTS idx_players_score_room 
+            ON players (room_code, score DESC, correct_count DESC, id ASC);
         `);
 
-        await client.query(`
-            ALTER TABLE quiz_session_state 
-            ADD COLUMN IF NOT EXISTS is_ended BOOLEAN DEFAULT FALSE;
-        `);
-
-        await client.query(`
-            ALTER TABLE quiz_session_state 
-            ADD COLUMN IF NOT EXISTS leaderboard_revealed BOOLEAN DEFAULT FALSE;
-        `);
-
-        await client.query(`
-            ALTER TABLE quiz_session_state 
-            ADD COLUMN IF NOT EXISTS badges_awarded BOOLEAN DEFAULT FALSE;
-        `);
-
-        await client.query(`
-            ALTER TABLE player_answers 
-            ADD COLUMN IF NOT EXISTS mascot_badge INT DEFAULT NULL;
-        `);
-
-        const res = await client.query('SELECT COUNT(*) FROM quiz_session_state');
-        if (parseInt(res.rows[0].count, 10) === 0) {
-            await client.query(`
-                INSERT INTO quiz_session_state (id, current_question_index, timer_start_time, timer_duration, show_answers, is_locked, is_ended)
-                VALUES (1, 0, NULL, 10, FALSE, FALSE, FALSE)
-            `);
-        }
         isDbInitialized = true;
         console.log('Database initialized successfully.');
     } catch (err) {
