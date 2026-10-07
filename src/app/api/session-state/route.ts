@@ -89,27 +89,30 @@ export async function GET(request: Request) {
         let playerBadges: number[] = [];
 
         if (usn) {
-            const [pRes, paRes, badgesRes] = await Promise.all([
-                query('SELECT score, correct_count FROM players WHERE usn = $1 AND room_code = $2', [usn, roomCode]),
-                query(
-                    'SELECT selected_answer, is_correct, points_earned, mascot_badge FROM player_answers WHERE player_usn = $1 AND room_code = $2 AND question_index = $3', 
-                    [usn, roomCode, data.currentQuestionIndex]
-                ),
-                query(
-                    'SELECT mascot_badge FROM player_answers WHERE player_usn = $1 AND room_code = $2 AND mascot_badge IS NOT NULL ORDER BY question_index ASC',
-                    [usn, roomCode]
-                )
-            ]);
+            const combinedRes = await query(`
+                SELECT 
+                    (SELECT row_to_json(p) FROM (SELECT score, correct_count FROM players WHERE usn = $1 AND room_code = $2) p) as player_info,
+                    (SELECT row_to_json(pa) FROM (SELECT selected_answer, is_correct, points_earned, mascot_badge FROM player_answers WHERE player_usn = $1 AND room_code = $2 AND question_index = $3) pa) as current_answer,
+                    (SELECT array_agg(mascot_badge ORDER BY question_index ASC) FROM player_answers WHERE player_usn = $1 AND room_code = $2 AND mascot_badge IS NOT NULL) as badges
+            `, [usn, roomCode, data.currentQuestionIndex]);
 
-            playerExists = pRes.rows.length > 0;
-            if (playerExists) {
-                playerScore = pRes.rows[0].score;
-                playerCorrectCount = pRes.rows[0].correct_count;
+            const row = combinedRes.rows[0];
+
+            if (row.player_info) {
+                playerExists = true;
+                playerScore = row.player_info.score;
+                playerCorrectCount = row.player_info.correct_count;
+            } else {
+                playerExists = false;
             }
-            if (paRes.rows.length > 0) {
-                playerCurrentAnswer = paRes.rows[0];
+            
+            if (row.current_answer) {
+                playerCurrentAnswer = row.current_answer;
             }
-            playerBadges = badgesRes.rows.map(r => r.mascot_badge);
+            
+            if (row.badges) {
+                playerBadges = row.badges;
+            }
         }
 
         return NextResponse.json({

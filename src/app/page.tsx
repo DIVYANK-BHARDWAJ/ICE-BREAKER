@@ -134,7 +134,7 @@ export default function PlayerPage() {
         // Fetch session state immediately
         fetchSessionState();
 
-        const sessionInterval = setInterval(fetchSessionState, 1500);
+        const sessionInterval = setInterval(fetchSessionState, 4000);
 
         return () => {
             clearInterval(sessionInterval);

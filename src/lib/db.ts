@@ -5,8 +5,8 @@ let pool: Pool;
 const globalAny = global as any;
 const POOL_CONFIG = {
     connectionString: process.env.DATABASE_URL,
-    max: 100,
-    idleTimeoutMillis: 60000,
+    max: 40, // Reduced from 100 to prevent DB connection limits on free tiers
+    idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
 };
 
@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === 'production') {
     pool = new Pool(POOL_CONFIG);
 } else {
     if (!globalAny.pgPool) {
-        globalAny.pgPool = new Pool({ ...POOL_CONFIG, max: 50 });
+        globalAny.pgPool = new Pool({ ...POOL_CONFIG, max: 20 });
     }
     pool = globalAny.pgPool;
 }

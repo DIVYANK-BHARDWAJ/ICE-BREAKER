@@ -167,7 +167,8 @@ export async function POST(request: Request) {
         invalidateCacheByPrefix(`leaderboard-${roomCode}`);
         invalidateCacheByPrefix(`session-state-${roomCode}`);
         broadcast('leaderboard-update');
-        broadcast('response-update');
+        // broadcast('response-update'); // Removed to prevent SSE storm when 300 users submit at the exact same time
+
 
         const correctOption = (q.type === 'emoji')
             ? q.answer
