@@ -949,7 +949,7 @@ export default function PlayerPage() {
                             </div>
 
                             {/* Puzzle image if available */}
-                            {q.type === 'emoji' && q.images && q.images[0] && (
+                            {q.type !== 'mcq-image' && q.images && q.images[0] && (
                                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
                                     <img 
                                         src={q.images[0]} 
@@ -1098,8 +1098,8 @@ export default function PlayerPage() {
                     <div className="question-content">
                         <div className="question-text">{q.question}</div>
 
-                        {/* Image displays for Emoji game round */}
-                        {q.type === 'emoji' && q.images && q.images[0] && (
+                        {/* Image displays for game round */}
+                        {q.type !== 'mcq-image' && q.images && q.images[0] && (
                             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
                                 <img 
                                     src={q.images[0]} 

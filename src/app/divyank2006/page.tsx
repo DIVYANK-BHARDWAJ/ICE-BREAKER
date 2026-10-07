@@ -1039,8 +1039,8 @@ export default function HiddenAdminPage() {
                                 <div style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0' }}>{q.question}</div>
                             </div>
 
-                            {/* Images displays for MCQ-Image / Emoji */}
-                            {(q.type === 'mcq-image' || q.type === 'emoji') && q.images && (
+                            {/* Images displays */}
+                            {q.images && (
                                 <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                                     {q.images.map((img, imgIdx) => (
                                         <div key={imgIdx} style={{ height: 100, border: '1px solid var(--glass-border)', padding: 6, borderRadius: 8, background: '#000' }}>
