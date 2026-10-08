@@ -119,6 +119,7 @@ export async function POST(request: Request) {
             invalidateCacheByPrefix(`session-state-${roomCode}`);
             invalidateCacheByPrefix(`leaderboard-${roomCode}`);
             broadcast('session-update');
+            broadcast('leaderboard-update');
         }
 
         // Fetch updated state

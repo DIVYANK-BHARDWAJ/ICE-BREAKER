@@ -166,8 +166,9 @@ export async function POST(request: Request) {
 
         invalidateCacheByPrefix(`leaderboard-${roomCode}`);
         invalidateCacheByPrefix(`session-state-${roomCode}`);
-        broadcast('leaderboard-update');
-        // broadcast('response-update'); // Removed to prevent SSE storm when 300 users submit at the exact same time
+        // Removed broadcast('leaderboard-update') and 'response-update'
+        // to prevent SSE storm when 300 users submit at the exact same time.
+        // Leaderboard will broadcast when the admin mutates state.
 
 
         const correctOption = (q.type === 'emoji')
