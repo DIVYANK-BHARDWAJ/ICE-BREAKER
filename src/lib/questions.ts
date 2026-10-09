@@ -15,7 +15,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "What is Thor's hammer called?",
         options: ["Stormbreaker", "Mjölnir", "Gungnir", "Excalibur"],
-        images: ["/assets/marvel_1.jpeg"],
+        images: ["/assets/marvel_1.webp"],
         answer: 1, // Mjölnir
         timer: 15
     },
@@ -24,7 +24,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Who is the God of Mischief?",
         options: ["Loki", "Thor", "Odin", "Vision"],
-        images: ["/assets/marvel_5.jpeg"],
+        images: ["/assets/marvel_5.webp"],
         answer: 0, // Loki
         timer: 15
     },
@@ -33,7 +33,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "How many Infinity Stones are there?",
         options: ["4", "5", "6", "7"],
-        images: ["/assets/marvel_3.jpeg"],
+        images: ["/assets/marvel_3.webp"],
         answer: 2, // 6
         timer: 15
     },
@@ -42,7 +42,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "What is Captain America's shield primarily made of?",
         options: ["Vibranium", "Adamantium", "Titanium", "Uru"],
-        images: ["/assets/marvel_4.jpeg"],
+        images: ["/assets/marvel_4.webp"],
         answer: 0, // Vibranium
         timer: 15
     },
@@ -51,7 +51,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Who carries the title 'Sorcerer Supreme'?",
         options: ["Loki", "Doctor Strange", "Wong", "Thor"],
-        images: ["/assets/marvel_2.jpeg"],
+        images: ["/assets/marvel_2.webp"],
         answer: 1, // Doctor Strange
         timer: 15
     },
@@ -60,7 +60,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Who is Thor's father?",
         options: ["Thanos", "Odin", "Loki", "Heimdall"],
-        images: ["/assets/marvel_6.jpeg"],
+        images: ["/assets/marvel_6.webp"],
         answer: 1, // Odin
         timer: 15
     },
@@ -69,7 +69,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "What is Hawkeye's real name?",
         options: ["Clint Barton", "Sam Wilson", "Bucky Barnes", "Scott Lang"],
-        images: ["/assets/marvel_7.jpeg"],
+        images: ["/assets/marvel_7.webp"],
         answer: 0, // Clint Barton
         timer: 15
     },
@@ -78,7 +78,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Who is known as the 'Merc with a Mouth'?",
         options: ["Deadpool", "Wolverine", "Loki", "Star-Lord"],
-        images: ["/assets/marvel_10.jpeg"],
+        images: ["/assets/marvel_10.webp"],
         answer: 0, // Deadpool
         timer: 15
     },
@@ -87,7 +87,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Which Infinity Stone is inside Vision's forehead?",
         options: ["Time Stone", "Mind Stone", "Power Stone", "Reality Stone"],
-        images: ["/assets/marvel_9.jpeg"],
+        images: ["/assets/marvel_9.webp"],
         answer: 1, // Mind Stone
         timer: 15
     },
@@ -96,7 +96,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Which character is known as the 'First Avenger'?",
         options: ["Iron Man", "Thor", "Captain America", "Hulk"],
-        images: ["/assets/marvel_8.jpeg"],
+        images: ["/assets/marvel_8.webp"],
         answer: 2, // Captain America
         timer: 15
     },
@@ -105,7 +105,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "Who created Ultron in the MCU?",
         options: ["Tony Stark and Bruce Banner", "Thor and Loki", "Steve Rogers and Bucky", "Nick Fury and Coulson"],
-        images: ["/assets/marvel_11.jpeg"],
+        images: ["/assets/marvel_11.webp"],
         answer: 0, // Tony Stark and Bruce Banner
         timer: 15
     },
@@ -114,7 +114,7 @@ export const questions: Question[] = [
         type: "mcq",
         question: "What is the name of Thor's axe?",
         options: ["Mjölnir", "Stormbreaker", "Gungnir", "Necrosword"],
-        images: ["/assets/marvel_12.jpeg"],
+        images: ["/assets/marvel_12.webp"],
         answer: 1, // Stormbreaker
         timer: 15
     },
